@@ -1,0 +1,23 @@
+name: Run pre-commit hooks and pytest
+
+on:
+  push:
+    branches:
+      - main
+    workflow-dispatch:
+    pull_request:
+
+jobs:
+  pre-commit-checks:
+    name: python
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@ed21f2f24f8dd64503750218de024bcf64c7250a # v7.1.5
+
+      - name: run pre-commit checks
+        run: uv run pre-commit run --all

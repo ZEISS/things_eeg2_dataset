@@ -28,7 +28,6 @@ class ThingsEEGItem:
     text: str  # image caption
     image: Path | Tensor  # loaded image or path
 
-
     # Example: image_id = 1200
     # Then it follows that image_class = 1200 // 10 = 120
     # and sample_id = 1200 % 120 + 1 = 1

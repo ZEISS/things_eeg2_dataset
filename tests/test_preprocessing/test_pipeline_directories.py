@@ -1,7 +1,5 @@
 import sys
-from dataclasses import replace
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 

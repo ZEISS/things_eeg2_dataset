@@ -1,7 +1,6 @@
-import shutil
 import zipfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -147,4 +146,3 @@ def test_download_raw_data_summary(downloader: Downloader) -> None:
 
     assert results == {1: True, 2: True}
     assert mock_dl.call_count == 2
-
