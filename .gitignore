@@ -1,0 +1,34 @@
+*cache/
+
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+*.jpg
+
+*.npy
+*.mat
+*.eeg
+*.vhdr
+*.vmrk
+*.npz
+*.zip
+*.pt
+*.csv
+*.bak
+
+Image_set/
+raw_data/
+source_data/
+processed/
+embeddings/
+**log.txt
+*.typed
+
+data_explore.ipynb

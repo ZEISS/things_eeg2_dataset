@@ -1,0 +1,71 @@
+[project]
+name = "things_eeg2_dataset"
+version = "0.0.1"
+description = "A simple and fast CLI for downloading, processing, and loading the THINGS-EEG2 dataset."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "diffusers>=0.35.2",
+    "einops>=0.8.1",
+    "gdown>=5.2.0",
+    "lightning>=2.6.0",
+    "mne>=1.11.0",
+    "osfclient>=0.0.5",
+    "pandas>=2.3.3",
+    "scikit-learn>=1.7.2",
+    "torchvision>=0.24.1",
+    "transformers>=4.57.1",
+    "typer>=0.20.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+    "ruff",
+    "mypy",
+    "ty",
+    "pre-commit",
+    "coverage>=7.11.1",
+    "pandas-stubs>=2.3.2.250926",
+    "scipy-stubs>=1.15.3.0",
+    "types-tqdm>=4.67.0.20250809",
+]
+
+
+[project.scripts]
+things-eeg2 = "things_eeg2_dataset.cli.main:app"
+
+# -- Build system configuration --------------------------------------------
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build]
+sources = ["src"]
+
+[tool.ruff.lint]
+extend-select = [
+    "W",
+    "UP",   # pyupgrade
+    "ANN",  # annotations
+    "PTH",  # use pathlib
+    "S",
+    "B",
+    "A",
+    "DTZ",
+    "FIX",
+    "LOG",
+    "I",
+    "PD",
+    "NPY",
+    "F",
+    "PL",
+    "RUF",
+    "PERF",
+]
+fixable = ["ALL"]
+
+[tool.ruff.lint.per-file-ignores]
+# Ignore magic numbers in test files
+"**/test_*" = ["ANN201", "S101", "PLR2004"]
+"main.py" = ["B008"]

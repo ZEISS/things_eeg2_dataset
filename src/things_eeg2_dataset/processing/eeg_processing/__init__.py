@@ -1,0 +1,19 @@
+from .raw_processor import (
+    TEST_IMG_CLASSES,
+    TEST_IMG_SAMPLES_PER_CLASS,
+    TEST_REPETITIONS,
+    TRAIN_IMG_CLASSES,
+    TRAIN_IMG_SAMPLES_PER_CLASS,
+    TRAIN_REPETITIONS,
+    RawProcessor,
+)
+
+__all__ = [
+    "TEST_IMG_CLASSES",
+    "TEST_IMG_SAMPLES_PER_CLASS",
+    "TEST_REPETITIONS",
+    "TRAIN_IMG_CLASSES",
+    "TRAIN_IMG_SAMPLES_PER_CLASS",
+    "TRAIN_REPETITIONS",
+    "RawProcessor",
+]
