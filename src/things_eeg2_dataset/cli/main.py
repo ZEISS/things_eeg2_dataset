@@ -1,6 +1,8 @@
 from pathlib import Path
+from typing import Annotated
 
 import typer
+from rich import print  # noqa: A004
 
 from things_eeg2_dataset import __version__
 
@@ -13,23 +15,23 @@ DEFAULT_SUBJECTS = list(range(1, 11))
 DEFAULT_MODELS: list[str] = []
 
 
-@app.callback()
-def main(
-    version_: bool = typer.Option(
-        False,
-        "--version",
-        callback=lambda v: version_callback(typer.Exit()),
-        is_eager=True,
-        help="Show the application's version and exit.",
-    ),
-) -> None:
-    pass
-
-
 def version_callback(value: bool) -> None:
     if value:
-        print(__version__)
-    raise typer.Exit()
+        print(f"{__package__.split('.')[0]} version: [green]{__version__}[/green]")
+        raise typer.Exit()
+
+
+@app.callback()
+def callback(
+    version: Annotated[
+        bool | None,
+        typer.Option(
+            "--version", help="Show the version and exit.", callback=version_callback
+        ),
+    ] = None,
+    verbose: bool = typer.Option(False, help="Enable verbose output"),
+) -> None:
+    pass
 
 
 @app.command(name="download")
