@@ -67,7 +67,9 @@ This package provides tools for downloading, preprocessing raw THINGS-EEG2 EEG d
 ## Installation
 
 ```bash
-# Clone this repository, cd into it and run
+git clone git@github.com:ZEISS/things_eeg2_dataset.git
+cd things_eeg2_dataset
+
 uv sync
 uv pip install --editable .
 ```
