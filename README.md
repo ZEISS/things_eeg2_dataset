@@ -77,9 +77,16 @@ uv pip install --editable .
 ## Usage
 
 ```bash
-python things-eeg2 process \
-    --project_dir /path/to/things_eeg2 \
+uv run things-eeg2 process \
+    --project_dir /path/to/project_dir \
     --subjects 1 2 3 4 5 6 7 8 9 10 \
+
+
+uv run things-eeg2 load \
+    --project-dir /path/to/project_dir \
+    --subject <EXAMPLE_SUBJECT \
+    --session <EXAMPLE_SESSION> \
+    --data-index <EXAMPLE_INDEX>
 ```
 
 ## Data Structure
@@ -110,8 +117,6 @@ embeddings/
 ├── ViT-H-14_features_test.pt
 └── ViT-H-14_features_test_full.pt
 ```
-
-
 
 ## References
 
