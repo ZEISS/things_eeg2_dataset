@@ -69,6 +69,8 @@ def resolve_file_paths(
 def get_info_for_sample(
     project_dir: Path, subject: int, session: int, data_idx: int, partition: str
 ) -> SampleInfo:
+    # Resolve project_dir
+    project_dir = project_dir.resolve()
     if partition == "training":
         image_dir = layout.get_training_images_dir(project_dir)
         cond_file = layout.get_eeg_train_image_conditions_file(project_dir, subject)
