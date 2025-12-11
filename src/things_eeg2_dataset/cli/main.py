@@ -1,10 +1,12 @@
 import logging
-import subprocess
+import os
+import sys
 from pathlib import Path
 from typing import Annotated
 
 import typer
 from rich import print  # noqa: A004
+from streamlit.web import cli as stcli
 
 from things_eeg2_dataset import __version__
 from things_eeg2_dataset.cli.logger import setup_logging
@@ -21,6 +23,7 @@ app = typer.Typer(
 
 DEFAULT_SUBJECTS = list(range(1, 11))
 DEFAULT_MODELS: list[str] = []
+DEFAULT_PROJECT_DIR = Path.home() / "things_eeg2"
 
 
 def version_callback(value: bool) -> None:
@@ -44,7 +47,9 @@ def callback(
 
 @app.command(name="download")
 def download(
-    project_dir: Path = typer.Option(..., "--project-dir", help="Path to project."),
+    project_dir: Path = typer.Option(
+        DEFAULT_PROJECT_DIR, "--project-dir", help="Path to project."
+    ),
     subjects: list[int] = typer.Option(
         DEFAULT_SUBJECTS, "--subjects", help="List of subject numbers to download."
     ),
@@ -75,10 +80,11 @@ def download(
     pipeline.step_download_data()
 
 
-# ---- Typer command ----
 @app.command(name="process")
 def process(  # noqa: PLR0913
-    project_dir: Path = typer.Option(..., "--project-dir", help="Path to project."),
+    project_dir: Path = typer.Option(
+        DEFAULT_PROJECT_DIR, "--project-dir", help="Path to project."
+    ),
     subjects: list[int] = typer.Option(
         DEFAULT_SUBJECTS, "--subjects", help="List of subject numbers to process."
     ),
@@ -132,7 +138,7 @@ def process(  # noqa: PLR0913
 @app.command(name="info")
 def info(
     project_dir: Path = typer.Option(
-        ..., "--project-dir", help="Path to project root."
+        DEFAULT_PROJECT_DIR, "--project-dir", help="Path to project root."
     ),
     subject: int = typer.Option(..., "--subject", help="Subject number (e.g., 1)."),
     session: int = typer.Option(..., "--session", help="Session number (e.g., 1)."),
@@ -162,23 +168,44 @@ def info(
 @app.command(name="show")
 def show(
     project_dir: Path = typer.Option(
-        ..., "--project-dir", help="Path to project root."
+        DEFAULT_PROJECT_DIR, "--project-dir", help="Path to project root."
     ),
 ) -> None:
     """
     Visualize EEG data for a specific sample.
     """
+    package_dir = Path(__file__).parent.parent
+    app_path = package_dir / "visualization" / "app.py"
 
-    subprocess.run(  # noqa: S603
-        [  # noqa: S607
-            "streamlit",
-            "run",
-            "src/things_eeg2_dataset/visualization/app.py",
-            "--",
-            f"--project-dir={project_dir}",
-        ],
-        check=False,
+    if not app_path.exists():
+        app_path = Path("src/things_eeg2_dataset/visualization/app.py").resolve()
+
+    if not app_path.exists():
+        logger.error(f"Could not find Streamlit app at {app_path}")
+        raise typer.Exit(code=1)
+
+    print("\n" + "=" * 60)
+    print("  🚀 THINGS EEG2 EXPLORER")
+    print(f"  📂 Project Directory: {project_dir}")
+    print("  👉 Dashboard loading... (Press Ctrl+C to stop)")
+    print("\n")
+    print(
+        "[yellow]If the explorer does not open automatically,\nplease click on the URLs below.[/yellow]"
     )
+    print("=" * 60)
+
+    # Disable usage stats to hide the "Collecting usage stats..." message
+    os.environ["STREAMLIT_BROWSER_GATHER_USAGE_STATS"] = "false"
+
+    sys.argv = [
+        "streamlit",
+        "run",
+        str(app_path),
+        "--",
+        f"--project-dir={project_dir}",
+    ]
+
+    sys.exit(stcli.main())
 
 
 if __name__ == "__main__":

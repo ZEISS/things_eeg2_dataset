@@ -113,6 +113,24 @@ class DataDirectoryLayout:
     def get_version_file(self, root: Path) -> Path:
         return root / self.version_file
 
+    def validate_existence_for_subject(self, root: Path, subject: int) -> bool:
+        raw_subj_dir = self.get_raw_subject_dir(root, subject)
+        processed_subj_dir = self.get_processed_subject_dir(root, subject)
+
+        required_paths = [
+            self.get_raw_dir(root),
+            self.get_source_dir(root),
+            self.get_processed_dir(root),
+            raw_subj_dir,
+            processed_subj_dir,
+            self.get_eeg_train_file(root, subject),
+            self.get_eeg_test_file(root, subject),
+            self.get_eeg_train_image_conditions_file(root, subject),
+            self.get_eeg_test_image_conditions_file(root, subject),
+            self.get_metadata_file(root, subject),
+        ]
+        return all(path.exists() for path in required_paths)
+
 
 # Global instance to be imported by other modules
 layout = DataDirectoryLayout()
