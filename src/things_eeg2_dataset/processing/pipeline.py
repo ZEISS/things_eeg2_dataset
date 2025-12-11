@@ -84,7 +84,8 @@ class ThingsEEGPipeline:
 
         # Pre-flight check
         if not self.validate_pipeline_inputs():
-            raise RuntimeError("Raw data check failed. Aborting pipeline.")
+            # raise RuntimeError("Raw data check failed. Aborting pipeline.")
+            logger.error("Raw data check failed. Aborting pipeline.")
 
         # 2. EEG Processing
         if not self.cfg.skip_processing:

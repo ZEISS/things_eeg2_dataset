@@ -1,4 +1,5 @@
 import logging
+import subprocess
 from pathlib import Path
 from typing import Annotated
 
@@ -156,6 +157,28 @@ def info(
     )
 
     print(info)
+
+
+@app.command(name="show")
+def show(
+    project_dir: Path = typer.Option(
+        ..., "--project-dir", help="Path to project root."
+    ),
+) -> None:
+    """
+    Visualize EEG data for a specific sample.
+    """
+
+    subprocess.run(  # noqa: S603
+        [  # noqa: S607
+            "streamlit",
+            "run",
+            "src/things_eeg2_dataset/visualization/app.py",
+            "--",
+            f"--project-dir={project_dir}",
+        ],
+        check=False,
+    )
 
 
 if __name__ == "__main__":

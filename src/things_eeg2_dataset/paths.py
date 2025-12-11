@@ -99,7 +99,11 @@ class DataDirectoryLayout:
         )
 
     def get_metadata_file(self, root: Path, subject: int) -> Path:
-        return self.get_processed_dir(root) / f"meta_sub-{subject:02d}.json"
+        return (
+            self.get_processed_dir(root)
+            / self.processed_subdir_template.format(subject=subject)
+            / f"meta_sub-{subject:02d}.json"
+        )
 
     def get_embedding_file(self, root: Path, model_name: str) -> Path:
         return self.get_embeddings_dir(root) / self.embedding_template.format(
