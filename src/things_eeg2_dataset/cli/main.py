@@ -1,7 +1,5 @@
-import datetime
 import logging
-import os
-import webbrowser
+from enum import Enum
 from pathlib import Path
 from typing import Annotated
 
@@ -10,6 +8,12 @@ from rich import print  # noqa: A004
 
 from things_eeg2_dataset import __version__
 from things_eeg2_dataset.cli.logger import setup_logging
+
+
+class Partition(str, Enum):
+    TRAINING = "training"
+    TEST = "test"
+
 
 logger = logging.getLogger(__name__)
 
@@ -111,6 +115,7 @@ def preprocess(  # noqa: PLR0913
     Preprocess the THINGS-EEG2 raw dataset.
     """
 
+    from things_eeg2_dataset.cli.profiling import run_with_profiling  # noqa: PLC0415
     from things_eeg2_dataset.processing.pipeline import (  # noqa: PLC0415
         _init_pipeline,
     )
@@ -129,31 +134,12 @@ def preprocess(  # noqa: PLR0913
     )
 
     if profile:
-        from pyinstrument import Profiler  # noqa: PLC0415
-
-        profile_dir = project_dir / "profiling"
-        profile_dir.mkdir(parents=True, exist_ok=True)
-        filename = f"{datetime.datetime.now(tz=datetime.timezone.utc).strftime('%Y%m%d_%H%M%S')}_preprocessing.html"
-        output_path = profile_dir / filename
-
-        with Profiler() as profiler:
-            pipeline.step_process_eeg()
-        # Include timestamp in filename to avoid overwriting
-        output_path.write_text(profiler.output_html())
-
-        print(f"\n[green]Profiling report saved to:[/green] {output_path}")
-
-        is_headless = os.environ.get("DISPLAY") is None
-
-        if open_report and not is_headless:
-            print("[yellow]Opening report in browser...[/yellow]")
-            webbrowser.open(output_path.as_uri())
-        elif open_report and is_headless:
-            print("[yellow]Headless environment detected. Skipping auto-open.[/yellow]")
-            print(
-                "Run [bold cyan]things-eeg2 view-profile --serve[/bold cyan] to view it remotely."
-            )
-
+        run_with_profiling(
+            fn=pipeline.step_process_eeg,
+            output_dir=project_dir / "profiling",
+            label="preprocessing",
+            open_report=open_report,
+        )
         return
 
     pipeline.step_process_eeg()
@@ -199,6 +185,9 @@ def embed(
     force: bool = typer.Option(False, "--force", help="Overwrite existing embeddings."),
     dry_run: bool = typer.Option(False, "--dry-run", help="Don't write data to disk."),
 ) -> None:
+    """
+    Generate model embeddings for the THINGS-EEG2 dataset.
+    """
     from things_eeg2_dataset.processing.pipeline import (  # noqa: PLC0415
         _init_pipeline,
     )
@@ -277,8 +266,8 @@ def info(
         "--data-index",
         help="0-based index of the numpy array element you want information about.",
     ),
-    partition: str = typer.Option(
-        "training", "--partition", help="Partition ('training' or 'test')."
+    partition: Partition = typer.Option(
+        Partition.TRAINING, "--partition", help="Partition ('training' or 'test')."
     ),
 ) -> None:
     """

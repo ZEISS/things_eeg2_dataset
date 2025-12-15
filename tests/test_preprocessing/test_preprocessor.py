@@ -23,7 +23,6 @@ def processor(mock_project_dir: Path) -> RawProcessor:
         subjects=[1],
         project_dir=mock_project_dir,
         sfreq=250,
-        mvnn_dim="epochs",
     )
 
 

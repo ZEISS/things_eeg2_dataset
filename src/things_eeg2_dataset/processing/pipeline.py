@@ -194,7 +194,6 @@ class ThingsEEGPipeline:
             subjects=self.cfg.subjects,
             project_dir=self.cfg.project_dir,
             sfreq=self.cfg.sfreq,
-            mvnn_dim="epochs",
         )
         processor.run(overwrite=self.cfg.overwrite, dry_run=self.cfg.dry_run)
 

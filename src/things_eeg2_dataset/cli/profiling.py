@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 import datetime
 import http.server
 import os
 import socket
 import socketserver
 import webbrowser
+from collections.abc import Callable
 from pathlib import Path
 
 from rich import print  # noqa: A004
@@ -82,3 +85,61 @@ def get_local_ip() -> str:
     finally:
         s.close()
     return ip
+
+
+def run_with_profiling(
+    fn: Callable[[], None],
+    *,
+    output_dir: Path,
+    label: str,
+    open_report: bool = True,
+) -> None:
+    """
+    Run a callable under pyinstrument profiling and save an HTML report.
+
+    Parameters
+    ----------
+    fn
+        Zero-argument callable to execute.
+    output_dir
+        Directory where profiling reports are stored.
+    label
+        Label used in the output filename (e.g. "preprocessing").
+    open_report
+        Whether to auto-open the report in a browser (if not headless).
+    """
+    from pyinstrument import Profiler  # noqa: PLC0415
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    timestamp = datetime.datetime.now(tz=datetime.timezone.utc).strftime(
+        "%Y%m%d_%H%M%S"
+    )
+
+    output_path = output_dir / f"{timestamp}_{label}.html"
+
+    with Profiler() as profiler:
+        fn()
+
+    output_path.write_text(profiler.output_html())
+
+    print(f"\n[green]Profiling report saved to:[/green] {output_path}")
+
+    _maybe_open_report(output_path, open_report=open_report)
+
+
+def _maybe_open_report(path: Path, *, open_report: bool) -> None:
+    if not open_report:
+        return
+
+    is_headless = os.environ.get("DISPLAY") is None
+
+    if is_headless:
+        print("[yellow]Headless environment detected. Skipping auto-open.[/yellow]")
+        print(
+            "Run [bold cyan]things-eeg2 view-profile --serve[/bold cyan] to view it remotely."
+        )
+        return
+
+    print("[yellow]Opening report in browser...[/yellow]")
+    webbrowser.open(path.as_uri())

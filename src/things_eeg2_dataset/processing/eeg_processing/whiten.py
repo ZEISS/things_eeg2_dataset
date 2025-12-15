@@ -1,4 +1,6 @@
+import logging
 import multiprocessing as mp
+from enum import Enum
 
 import mne
 import numpy as np
@@ -6,10 +8,16 @@ import scipy
 from sklearn.discriminant_analysis import _cov
 
 mne.set_log_level("WARNING")
+logger = logging.getLogger(__name__)
+
+
+class MVNNDim(str, Enum):
+    TIME = "time"
+    EPOCHS = "epochs"
 
 
 def whiten_one_session(
-    epoched_test: np.ndarray, epoched_train: np.ndarray, mvnn_dim: str
+    epoched_test: np.ndarray, epoched_train: np.ndarray, mvnn_dim: MVNNDim
 ) -> tuple[np.ndarray, np.ndarray]:
     whitened_test = []
     whitened_train = []
@@ -37,11 +45,11 @@ def whiten_one_session(
             ]  # EEG repetitions x EEG channels x EEG time points
             # Compute covariace matrices at each time point, and then
             # average across time points
-            if mvnn_dim == "time":
+            if mvnn_dim == MVNNDim.TIME:
                 sigma_cond[i] = np.mean()
             # Compute covariace matrices at each epoch (EEG repetition),
             # and then average across epochs/repetitions
-            elif mvnn_dim == "epochs":
+            elif mvnn_dim == MVNNDim.EPOCHS:
                 sigma_cond[i] = np.mean(
                     [
                         _cov(np.transpose(cond_data[e]), shrinkage="auto")
@@ -84,50 +92,31 @@ def whiten_one_session(
     return whitened_test, whitened_train
 
 
+# Define a helper to unpack arguments (necessary for pool.imap)
+def _whiten_wrapper(
+    args: tuple[np.ndarray, np.ndarray, MVNNDim],
+) -> tuple[np.ndarray, np.ndarray]:
+    return whiten_one_session(*args)
+
+
 def mvnn_whiten(
     number_of_sessions: int,
-    mvnn_dim: str,
     epoched_test: list[np.ndarray],
     epoched_train: list[np.ndarray],
-) -> tuple[np.ndarray, np.ndarray]:
-    """Compute the covariance matrices of the EEG data (calculated for each
-    time-point or epoch/repetitions of each image condition), and then average
-    them across image conditions and data partitions. The inverse of the
-    resulting averaged covariance matrix is used to whiten the EEG data
-    (independently for each session).
+    mvnn_dim: MVNNDim = MVNNDim.EPOCHS,
+) -> tuple[list[np.ndarray], list[np.ndarray]]:
+    tasks = [
+        (epoched_test[s], epoched_train[s], mvnn_dim) for s in range(number_of_sessions)
+    ]
 
-    zero-score standardization also has well performance
+    whitened_test = []
+    whitened_train = []
 
-    Parameters
-    ----------
-    number_of_sessions : int
-            Number of EEG data collection sessions.
-    mvnn_dim : int
-            Dimension mode for MVNN ('time' or 'epochs').
-    epoched_test : list of floats
-            Epoched test EEG data.
-    epoched_train : list of floats
-            Epoched training EEG data.
-
-    Returns
-    -------
-    whitened_test : list of float
-            Whitened test EEG data.
-    whitened_train : list of float
-            Whitened training EEG data.
-
-    """
-
-    ### Loop across data collection sessions ###
+    # Use imap to iterate over results in the MAIN process
     with mp.Pool(mp.cpu_count()) as pool:
-        results = pool.starmap(
-            whiten_one_session,
-            [
-                (epoched_test[s], epoched_train[s], mvnn_dim)
-                for s in range(number_of_sessions)
-            ],
-        )
+        for i, result in enumerate(pool.imap(_whiten_wrapper, tasks)):
+            whitened_test.append(result[0])
+            whitened_train.append(result[1])
+            logger.info(f"Whitening: Session {i + 1}/{number_of_sessions} completed.")
 
-    whitened_test = [r[0] for r in results]
-    whitened_train = [r[1] for r in results]
     return whitened_test, whitened_train

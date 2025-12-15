@@ -21,10 +21,9 @@ from typing import Any
 import numpy as np
 
 from things_eeg2_dataset.paths import layout
-
-from .epoching import epoch
-from .save import save_prepr
-from .whiten import mvnn_whiten
+from things_eeg2_dataset.processing.eeg_processing.whiten import mvnn_whiten
+from things_eeg2_dataset.processing.epoching import epoch
+from things_eeg2_dataset.processing.save import save_prepr
 
 logger = logging.getLogger(__name__)
 
@@ -72,8 +71,6 @@ class RawProcessor:
         Number of EEG sessions.
     sfreq : int
         Downsampling frequency.
-    mvnn_dim : str
-        MVNN dimension mode.
     project_dir : str
         Project directory path.
     epoched_test : list[np.ndarray] | None
@@ -97,13 +94,11 @@ class RawProcessor:
         subjects: list[int],
         project_dir: Path,
         sfreq: int = 250,
-        mvnn_dim: str = "epochs",
     ) -> None:
         """Initialize the RawProcessor with preprocessing parameters."""
         self.subjects = subjects
         self.number_of_sessions = 4
         self.sampling_frequency = sfreq
-        self.mvnn_dim = mvnn_dim
         self.project_dir = Path(project_dir).resolve()
         self.processed_dir = layout.get_processed_dir(self.project_dir)
         self.train_img_dir = layout.get_training_images_dir(self.project_dir)
@@ -165,7 +160,7 @@ class RawProcessor:
         )
 
         self.whitened_test, self.whitened_train = mvnn_whiten(
-            4, self.mvnn_dim, self.epoched_test, self.epoched_train
+            4, self.epoched_test, self.epoched_train
         )
 
         # Clean up epoched data to save memory
@@ -219,7 +214,6 @@ class RawProcessor:
         logger.info(f"Subjects:          {self.subjects}")
         logger.info(f"Number of sessions: {self.number_of_sessions}")
         logger.info(f"Sampling frequency: {self.sampling_frequency} Hz")
-        logger.info(f"MVNN dimension:     {self.mvnn_dim}")
         logger.info(f"Project directory:  {self.project_dir}")
 
         for subject in self.subjects:
