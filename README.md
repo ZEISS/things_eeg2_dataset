@@ -49,6 +49,14 @@ cd things_eeg2_dataset
 
 uv sync
 uv pip install --editable .
+source .venv/bin/activate
+
+things-eeg2 --help
+things-eeg2 --install-completion
+
+# Then restart your terminal.
+# Example for zsh:
+source ~/.zshrc
 ```
 
 ## Usage
