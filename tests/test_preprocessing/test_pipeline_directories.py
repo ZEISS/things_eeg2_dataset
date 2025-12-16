@@ -1,30 +1,11 @@
 import sys
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from things_eeg2_dataset.processing.pipeline import (
-    PipelineConfig,
     ThingsEEGPipeline,
 )
-
-# =============================================================================
-# Pipeline Orchestration Tests (Testing ThingsEEGPipeline)
-# =============================================================================
-
-
-@pytest.fixture
-def mock_pipeline(tmp_path: Path) -> ThingsEEGPipeline:
-    """Fixture to create a pipeline instance with mocked dependencies."""
-    config = PipelineConfig(
-        project_dir=tmp_path,
-        subjects=[1],
-        models=["test_model"],
-    )
-    return ThingsEEGPipeline(config)
-
 
 # =============================================================================
 # Error Handling Tests

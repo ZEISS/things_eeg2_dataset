@@ -33,7 +33,7 @@ class Downloader:
     Attributes:
         data_path: Path to store downloaded data
         subjects: List of subject IDs to download (1-10)
-        force: Whether to re-download existing files
+        overwrite: Whether to re-download existing files
         dry_run: If True, only show what would be downloaded
         timeout: Network timeout in seconds
         max_retries: Maximum number of retry attempts
@@ -100,7 +100,7 @@ class Downloader:
         Args:
             project_dir: Directory path to store downloaded data
             subjects: List of subject IDs (1-10). Default is all subjects.
-            force: If True, re-download existing files
+            overwrite: If True, re-download existing files
             dry_run: If True, only report what would be downloaded
             timeout: Network timeout in seconds
             max_retries: Maximum retry attempts for failed downloads
@@ -382,6 +382,6 @@ class Downloader:
         print(f"Subjects to download: {self.subjects}")
         print(f"Data path: {self.project_dir}")
         print(f"Mode: {'DRY RUN' if self.dry_run else 'LIVE'}")
-        print(f"Force download: {self.overwrite}")
+        print(f"Overwrite download: {self.overwrite}")
         print()
         print("=" * 70 + "\n")

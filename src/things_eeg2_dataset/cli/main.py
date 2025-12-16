@@ -15,6 +15,13 @@ class Partition(str, Enum):
     TEST = "test"
 
 
+class EmbeddingModel(str, Enum):
+    OPEN_CLIP_VIT_H_14 = "open-clip-vit-h-14"
+    OPENAI_CLIP_VIT_L_14 = "openai-clip-vit-l-14"
+    DINO_V2 = "dinov2"
+    IP_ADAPTER = "ip-adapter"
+
+
 logger = logging.getLogger(__name__)
 
 app = typer.Typer(
@@ -80,7 +87,7 @@ def download(
     pipeline = _init_pipeline(
         project_dir=project_dir,
         subjects=subjects,
-        force=overwrite,
+        overwrite=overwrite,
         dry_run=dry_run,
         skip_download=False,
         skip_preprocessing=True,  # Not needed for downloading
@@ -98,8 +105,8 @@ def preprocess(  # noqa: PLR0913
         DEFAULT_SUBJECTS, "--subjects", help="List of subject numbers to process."
     ),
     sfreq: int = typer.Option(250, "--sfreq", help="Downsampling frequency in Hz."),
-    force: bool = typer.Option(
-        False, "--force", help="Overwrite existing processed data."
+    overwrite: bool = typer.Option(
+        False, "--overwrite", help="Overwrite existing processed data."
     ),
     dry_run: bool = typer.Option(False, "--dry-run", help="Don't write data to disk."),
     profile: bool = typer.Option(
@@ -126,7 +133,7 @@ def preprocess(  # noqa: PLR0913
         models=[],  # Not needed for preprocessing
         sfreq=sfreq,
         device="cuda:0",  # Not needed for preprocessing
-        force=force,
+        overwrite=overwrite,
         dry_run=dry_run,
         skip_download=True,  # Not needed for preprocessing
         skip_preprocessing=False,
@@ -176,13 +183,22 @@ def embed(
     project_dir: Path = typer.Option(
         DEFAULT_PROJECT_DIR, "--project-dir", help="Path to project."
     ),
-    models: list[str] = typer.Option(
-        ..., "--models", help="List of models to generate embeddings for."
+    models: list[EmbeddingModel] = typer.Option(
+        [
+            EmbeddingModel.OPEN_CLIP_VIT_H_14,
+            EmbeddingModel.OPENAI_CLIP_VIT_L_14,
+            EmbeddingModel.DINO_V2,
+            EmbeddingModel.IP_ADAPTER,
+        ],
+        "--models",
+        help="List of models to generate embeddings for.",
     ),
     device: str = typer.Option(
         "cuda:0", "--device", help="Device for model inference."
     ),
-    force: bool = typer.Option(False, "--force", help="Overwrite existing embeddings."),
+    overwrite: bool = typer.Option(
+        False, "--overwrite", help="Overwrite existing embeddings."
+    ),
     dry_run: bool = typer.Option(False, "--dry-run", help="Don't write data to disk."),
 ) -> None:
     """
@@ -196,9 +212,8 @@ def embed(
         project_dir=project_dir,
         subjects=[],  # Not needed for embedding
         models=models,
-        sfreq=250,  # Not needed for embedding
         device=device,
-        force=force,
+        overwrite=overwrite,
         dry_run=dry_run,
         skip_download=True,  # Not needed for embedding
         skip_preprocessing=True,  # Not needed for embedding
@@ -215,15 +230,15 @@ def pipeline(  # noqa: PLR0913
     subjects: list[int] = typer.Option(
         DEFAULT_SUBJECTS, "--subjects", help="List of subject numbers to process."
     ),
-    models: list[str] = typer.Option(
+    models: list[EmbeddingModel] = typer.Option(
         DEFAULT_MODELS, "--models", help="List of models to use."
     ),
     sfreq: int = typer.Option(250, "--sfreq", help="Downsampling frequency in Hz."),
     device: str = typer.Option(
         "cuda:0", "--device", help="Device for model inference."
     ),
-    force: bool = typer.Option(
-        False, "--force", help="Overwrite existing processed data."
+    overwrite: bool = typer.Option(
+        False, "--overwrite", help="Overwrite existing processed data."
     ),
     dry_run: bool = typer.Option(False, "--dry-run", help="Don't write data to disk."),
     skip_download: bool = typer.Option(False, "--skip-download"),
@@ -244,7 +259,7 @@ def pipeline(  # noqa: PLR0913
         models=models,
         sfreq=sfreq,
         device=device,
-        force=force,
+        overwrite=overwrite,
         dry_run=dry_run,
         skip_download=skip_download,
         skip_preprocessing=skip_preprocessing,

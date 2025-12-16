@@ -11,8 +11,11 @@ import pandas as pd
 import torch
 import torchvision.transforms as T
 from PIL import Image
+from safetensors.torch import loadfile
 from torch import Tensor
 from torch.utils.data import Dataset
+
+CHANNEL_MONTAGE = "standard_1020"
 
 
 @dataclass
@@ -135,7 +138,7 @@ class ThingsEEGDataset(Dataset):
         self._load_embeddings(self.normalize_embed)
 
         # Channel positions (after ch_names available)
-        self.montage = "standard_1020"
+        self.montage = CHANNEL_MONTAGE
         self.ch_pos = self._compute_channel_positions()
 
     def _prepare_text_and_images(self) -> tuple[list[str], list[str]]:  # noqa: PLR0912, PLR0915
@@ -432,7 +435,7 @@ class ThingsEEGDataset(Dataset):
         if not Path(feat_file).exists():
             raise FileNotFoundError(f"Embedding feature file not found: {feat_file}")
 
-        saved = torch.load(feat_file, weights_only=True)
+        saved = loadfile(feat_file)
         img_embeddings = saved["img_features"]
         text_embeddings = saved.get("text_features", None)
 
@@ -443,7 +446,7 @@ class ThingsEEGDataset(Dataset):
 
         self.emb_stats = None
         if normalize_embed and stats_file and Path(stats_file).exists():
-            self.emb_stats = torch.load(stats_file)
+            self.emb_stats = loadfile(stats_file)
 
         # Share memory so multiple workers don't duplicate
         self._shared_objects = {

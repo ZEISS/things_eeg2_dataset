@@ -3,6 +3,7 @@ Generate image and text embeddings for THINGS-EEG2 dataset.
 """
 
 import argparse
+import logging
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from os import getenv
@@ -12,6 +13,7 @@ from typing import Any
 import torch
 from diffusers import AutoPipelineForText2Image
 from PIL import Image
+from safetensors.torch import save_file
 from torch import Tensor
 from tqdm import tqdm
 from transformers import (
@@ -24,12 +26,17 @@ from transformers import (
     Dinov2WithRegistersModel,
 )
 
+from things_eeg2_dataset.cli.main import EmbeddingModel
+from things_eeg2_dataset.paths import layout
+
 from .embedding_models import (
     ImageProjModel,
     IPAdapterPlusXL,
     IPAdapterXL,
     Resampler,
 )
+
+logger = logging.getLogger(__name__)
 
 # Embedder names
 OPEN_CLIP_VIT_H_14 = "open-clip-vit-h-14"
@@ -43,36 +50,18 @@ class BaseEmbedder(ABC):
 
     def __init__(
         self,
-        data_path: Path | str = "data/things-eeg2/Image_set/",
-        force: bool = False,
+        project_dir: Path,
+        overwrite: bool = False,
         dry_run: bool = False,
         device: str = "cuda:0",
     ) -> None:
-        """
-        Initializes the embedder.
-
-        Args:
-            data_path (Path | str): Path to the image dataset directory.
-            force (bool): Whether to force reprocessing.
-            dry_run (bool): Whether to simulate processing without executing.
-            device (str): The device to run the model on.
-        """
-        self.data_path: Path = Path(data_path)
-        self.train_images_path: Path = self.data_path / "training_images"
-        self.test_images_path: Path = self.data_path / "test_images"
-        self.embeds_dir: Path = self.data_path / "embeddings"
+        self.images_dir = layout.get_images_dir(project_dir)
+        self.train_images_path = layout.get_training_images_dir(project_dir)
+        self.test_images_path = layout.get_test_images_dir(project_dir)
+        self.embeds_dir = layout.get_embeddings_dir(project_dir)
         self.embeds_dir.mkdir(parents=True, exist_ok=True)
 
-        if not self.test_images_path.exists():
-            raise FileNotFoundError(
-                f"Image path {self.test_images_path} does not exist"
-            )
-        if not self.train_images_path.exists():
-            raise FileNotFoundError(
-                f"Image path {self.train_images_path} does not exist"
-            )
-
-        self.force: bool = force
+        self.overwrite: bool = overwrite
         self.dry_run: bool = dry_run
         self.device: str = device
         self.model_type: str = "base"
@@ -152,13 +141,16 @@ class BaseEmbedder(ABC):
             print(f"Dry run enabled, not saving embeddings to {embeds_path}")
             return
 
-        torch.save(
+        embeds_path = embeds_path.with_suffix(".safetensors")
+
+        save_file(
             {
                 "img_features": img_embeds,
                 "text_features": text_embeds,
             },
             embeds_path,
         )
+        logger.info(f"Saved embeddings to {embeds_path}")
 
     @abstractmethod
     def generate_and_store_embeddings(self) -> None:
@@ -173,7 +165,7 @@ class BaseEmbedder(ABC):
         txt2embed: Callable[[list[str]], Tensor],
         embed_dim: tuple[int, ...],
     ) -> None:
-        if embeds_path.exists() and not self.force:
+        if embeds_path.exists() and not self.overwrite:
             print(f"Embeddings already exist at {embeds_path}, skipping.")
             return
         self.store_embeddings(image_dir, embeds_path, image2embed, txt2embed, embed_dim)
@@ -184,21 +176,13 @@ class OpenClipViTH14Embedder(BaseEmbedder):
 
     def __init__(
         self,
-        data_path: Path | str = "data/things-eeg2/Image_set/",
-        force: bool = False,
+        project_dir: Path,
+        overwrite: bool = False,
         dry_run: bool = False,
         device: str = "cuda:0",
     ) -> None:
-        """
-        Initializes the embedder by loading the model and processors.
-
-        Args:
-            data_path (Path | str): Path to the image dataset directory.
-            force (bool): Whether to force reprocessing.
-            dry_run (bool): Whether to simulate processing without executing.
-            device (str): The device to run the model on.
-        """
-        super().__init__(data_path, force, dry_run, device)
+        super().__init__(project_dir, overwrite, dry_run, device)
+        # TODO: Use constent instead of hardcoding the model  # noqa: FIX002
         self.model_type: str = "ViT-H-14"
 
         image_encoder: CLIPVisionModelWithProjection = (
@@ -314,13 +298,13 @@ class OpenAIClipVitL14Embedder(BaseEmbedder):
 
     def __init__(
         self,
-        data_path: Path | str = "data/things-eeg2/Image_set/",
-        force: bool = False,
+        project_dir: Path,
+        overwrite: bool = False,
         dry_run: bool = False,
         device: str = "cuda:0",
     ) -> None:
-        super().__init__(data_path, force, dry_run, device)
-        self.model_type = "openai_ViT-L-14"
+        super().__init__(project_dir, overwrite, dry_run, device)
+        self.model_type = EmbeddingModel.OPENAI_CLIP_VIT_L_14
         self.processor: CLIPImageProcessor = CLIPImageProcessor.from_pretrained(
             "openai/clip-vit-large-patch14"
         )
@@ -434,12 +418,12 @@ class DinoV2Embedder(BaseEmbedder):
 
     def __init__(
         self,
-        data_path: Path | str = "data/things-eeg2/Image_set/",
-        force: bool = False,
+        project_dir: Path,
+        overwrite: bool = False,
         dry_run: bool = False,
         device: str = "cuda:0",
     ) -> None:
-        super().__init__(data_path, force, dry_run, device)
+        super().__init__(project_dir, overwrite, dry_run, device)
         self.model_type = "dinov2-reg"
         self.image_processor: AutoImageProcessor = AutoImageProcessor.from_pretrained(
             "facebook/dinov2-with-registers-base", use_fast=True
@@ -556,12 +540,12 @@ class IPAdapterEmbedder(BaseEmbedder):
 
     def __init__(
         self,
-        data_path: Path | str = "data/things-eeg2/Image_set/",
-        force: bool = False,
+        project_dir: Path,
+        overwrite: bool = False,
         dry_run: bool = False,
         device: str = "cuda:0",
     ) -> None:
-        super().__init__(data_path, force, dry_run, device)
+        super().__init__(project_dir, overwrite, dry_run, device)
         self.model_type = "ip-adapter-plus-vit-h-14"
         image_encoder: CLIPVisionModelWithProjection = (
             CLIPVisionModelWithProjection.from_pretrained(
@@ -691,8 +675,8 @@ EMBEDDER_DICT = {
 
 def build_embedder(
     model_type: str,
-    data_path: Path = Path("data/things-eeg2/Image_set/"),
-    force: bool = False,
+    project_dir: Path,
+    overwrite: bool = False,
     dry_run: bool = False,
     device: str = "cuda:0",
 ) -> BaseEmbedder:
@@ -700,7 +684,7 @@ def build_embedder(
     if model_type not in EMBEDDER_DICT:
         raise ValueError(f"Unknown model type: {model_type}")
     embedder_class = EMBEDDER_DICT[model_type]
-    return embedder_class(data_path, force, dry_run, device)  # type: ignore[abstract]
+    return embedder_class(project_dir, overwrite, dry_run, device)  # type: ignore[abstract]
 
 
 __all__ = [
@@ -732,16 +716,16 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "-p",
-        "--data_path",
+        "--project_dir",
         type=str,
         default="data/things-eeg2/Image_set/",
         help="Path to the image dataset directory.",
     )
     parser.add_argument(
         "-f",
-        "--force",
+        "--overwrite",
         action="store_true",
-        help="Force reprocessing of existing embeddings.",
+        help="overwrite reprocessing of existing embeddings.",
     )
     parser.add_argument(
         "-d",
@@ -753,8 +737,8 @@ if __name__ == "__main__":
 
     embedder: BaseEmbedder = build_embedder(
         args.model,
-        data_path=args.data_path,
-        force=args.force,
+        project_dir=Path(args.project_dir),
+        overwrite=args.overwrite,
         dry_run=args.dry_run,
         device="cuda:0",
     )

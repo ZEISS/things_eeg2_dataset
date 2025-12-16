@@ -9,6 +9,7 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from things_eeg2_dataset.cli.main import EmbeddingModel
 from things_eeg2_dataset.paths import layout
 from things_eeg2_dataset.processing import (
     Downloader,
@@ -40,7 +41,7 @@ class PipelineConfig:
 
     project_dir: Path
     subjects: list[int]
-    models: list[str] = field(default_factory=list)
+    models: list[EmbeddingModel] = field(default_factory=list)
     sfreq: int = 250
     device: str = "cuda:0"
     overwrite: bool = False
@@ -56,14 +57,14 @@ class PipelineConfig:
 def _init_pipeline(  # noqa: PLR0913
     project_dir: Path,
     subjects: list[int],
-    force: bool,
+    overwrite: bool,
     dry_run: bool,
     skip_download: bool,
     skip_preprocessing: bool,
     create_embeddings: bool,
     device: str = "cuda:0",
     sfreq: int = 250,
-    models: list[str] | None = None,
+    models: list[EmbeddingModel] | None = None,
 ) -> "ThingsEEGPipeline":  # type: ignore
     from things_eeg2_dataset.processing.pipeline import (  # noqa: PLC0415
         PipelineConfig,
@@ -78,7 +79,7 @@ def _init_pipeline(  # noqa: PLR0913
         models=models,
         sfreq=sfreq,
         device=device,
-        overwrite=force,
+        overwrite=overwrite,
         dry_run=dry_run,
         skip_download=skip_download,
         skip_processing=skip_preprocessing,
@@ -201,12 +202,14 @@ class ThingsEEGPipeline:
         self._log_header("Embedding Generation")
 
         for model_name in self.cfg.models:
-            logger.info(f"Generating: {model_name}")
+            BLUE = "\033[94m"
+            RESET = "\033[0m"
+            logger.info(f"Generating: {BLUE}{model_name}{RESET}")
             try:
                 embedder = build_embedder(
                     model_type=model_name,
-                    data_path=layout.get_images_dir(self.cfg.project_dir),
-                    force=self.cfg.overwrite,
+                    project_dir=layout.get_images_dir(self.cfg.project_dir),
+                    overwrite=self.cfg.overwrite,
                     dry_run=self.cfg.dry_run,
                     device=self.cfg.device,
                 )

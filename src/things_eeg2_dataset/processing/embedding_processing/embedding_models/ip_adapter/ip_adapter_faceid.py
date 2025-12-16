@@ -4,6 +4,7 @@ from typing import Any
 import torch
 from PIL import Image
 from safetensors import safe_open
+from safetensors.torch import loadfile
 from things_eeg2_raw_processing.embedding_processing.embedding_models.ip_adapter.attention_processor import (
     AttnProcessor,
     IPAttnProcessor,
@@ -210,7 +211,7 @@ class IPAdapterFaceID:
                             f.get_tensor(key)
                         )
         else:
-            state_dict = torch.load(self.ip_ckpt, map_location="cpu")
+            state_dict = loadfile(self.ip_ckpt, device="cpu")
         self.image_proj_model.load_state_dict(state_dict["image_proj"])
         ip_layers = torch.nn.ModuleList(self.pipe.unet.attn_processors.values())
         ip_layers.load_state_dict(state_dict["ip_adapter"], strict=False)
@@ -419,7 +420,7 @@ class IPAdapterFaceIDPlus:
                             f.get_tensor(key)
                         )
         else:
-            state_dict = torch.load(self.ip_ckpt, map_location="cpu")
+            state_dict = loadfile(self.ip_ckpt, device="cpu")
         self.image_proj_model.load_state_dict(state_dict["image_proj"])
         ip_layers = torch.nn.ModuleList(self.pipe.unet.attn_processors.values())
         ip_layers.load_state_dict(state_dict["ip_adapter"], strict=False)

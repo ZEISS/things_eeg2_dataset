@@ -206,8 +206,8 @@ class RawProcessor:
 
         Parameters
         ----------
-        force : bool, optional
-            If True, forces reprocessing even if processed data exists (default: False).
+        overwrite : bool, optional
+            If True, overwrites reprocessing even if processed data exists (default: False).
         dry_run : bool, optional
             If True, only simulates the preprocessing without executing it (default: False).
         """
@@ -218,7 +218,7 @@ class RawProcessor:
 
         for subject in self.subjects:
             logger.info(f"--- Processing subject: {subject} ---")
-            # only if processed data doesn't already exist or force is True
+            # only if processed data doesn't already exist or overwrite is True
             if not self._check_processed_data_exists() or overwrite:
                 self.epoch_and_sort(subject)
                 self.apply_mvnn()
