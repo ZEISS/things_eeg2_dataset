@@ -1,8 +1,9 @@
 [project]
 name = "things_eeg2_dataset"
-version = "0.0.1"
+version = "0.0.2"
 description = "A simple and fast CLI for downloading, processing, and loading the THINGS-EEG2 dataset."
 readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.10"
 dependencies = [
     "accelerate>=1.12.0",
