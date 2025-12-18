@@ -20,12 +20,11 @@
 [ci-badge]: https://img.shields.io/github/actions/workflow/status/zeiss/things_eeg2_dataset/ci.yml?branch=main&style=flat-square&label=CI
 [ci-url]: https://github.com/zeiss/things_eeg2_dataset/actions/workflows/ci.yml
 
-
 <!-- [conda-badge]: https://img.shields.io/conda/vn/conda-forge/things_eeg2_dataset?style=flat-square -->
 
 </div>
 
-# THINGS-EEG2 Raw Data Processing
+# Introduction
 
 This package provides tools for downloading, preprocessing raw THINGS-EEG2 EEG data, and generating image embeddings from various vision models.
 
@@ -38,6 +37,8 @@ This package provides tools for downloading, preprocessing raw THINGS-EEG2 EEG d
 
 ## Installation
 
+### From GitHub
+
 ```bash
 git clone git@github.com:ZEISS/things_eeg2_dataset.git
 cd things_eeg2_dataset
@@ -49,29 +50,36 @@ source .venv/bin/activate
 things-eeg2 --help
 things-eeg2 --install-completion
 
-# Then restart your terminal.
+# Then restart your shell
+# Example for zsh:
+source ~/.zshrc
+```
+
+### From PyPI
+
+```bash
+# Using UV
+uv init
+uv add things_eeg2_dataset
+source .venv/bin/activate
+
+things-eeg2 --help
+things-eeg2 --install-completion
+
+# Then restart your shell
 # Example for zsh:
 source ~/.zshrc
 ```
 
 ## Usage
 
-```bash
-uv run things-eeg2 process \
-    --project_dir /path/to/project_dir \
-    --subjects 1 2 3 4 5 6 7 8 9 10 \
-
-
-uv run things-eeg2 info \
-    --project-dir /path/to/project_dir \
-    --subject <EXAMPLE_SUBJECT \
-    --session <EXAMPLE_SESSION> \
-    --data-index <EXAMPLE_INDEX>
-```
+![things_eeg2_dataset demo](https://raw.githubusercontent.com/ZEISS/things_eeg2_dataset/refs/heads/main/.github/assets/demo/demo-light.png#gh-light-mode-only)
+![things_eeg2_dataset demo](https://raw.githubusercontent.com/ZEISS/things_eeg2_dataset/refs/heads/main/.github/assets/demo/demo-dark.gif#gh-dark-mode-only)
 
 ## Data Structure
 
-For understanding the data structure that is created by the CLI (and then needed to perform proper preprocessing and loading), please see [paths.py](src/things_eeg2_dataset//paths.py). All code is configured to use the structure defined there as its ground truth.
+You can understand the data structure that is created by the CLI by referring to [paths.py](src/things_eeg2_dataset//paths.py).
+It contains the ground truth data structure used throughout the project.
 
 ### Embedding Generation (`embedding_processing/`)
 
@@ -85,24 +93,20 @@ The package supports multiple state-of-the-art vision models for generating imag
 | `ip-adapter` | `IPAdapterEmbedder` | IP-Adapter Plus projections |
 
 Each embedder generates:
+
 - **Pooled embeddings**: Single vector per image (e.g., `(1024,)` for ViT-H-14)
 - **Full sequence embeddings**: All tokens (e.g., `(257, 1280)` for ViT-H-14)
 - **Text embeddings**: Corresponding text features from image captions
 
 **Output Files:**
-```
+
+```bash
 embeddings/
 ├── ViT-H-14_features_training.pt           # Pooled embeddings
 ├── ViT-H-14_features_training_full.pt      # Full token sequences
 ├── ViT-H-14_features_test.pt
 └── ViT-H-14_features_test_full.pt
 ```
-
-## References
-
-- Original THINGS-EEG2 paper and code
-- Implementation based on: https://www.sciencedirect.com/science/article/pii/S1053811922008758
-
 
 ### Using the dataloader
 
@@ -122,10 +126,10 @@ dataset = ThingsEEGDataset(
 
 See `things_eeg2_dataloader/README.md` for detailed usage.
 
-## Citation
+## References & Citation
 
-We are happy users of the THINGS-EEG2 dataset, but not associated with the original authors.
-If you use this code, please cite the THINGS-EEG2 paper:
+We are happy users of the [THINGS-EEG2 dataset](https://things-initiative.org/), but not associated with the original authors.
+If you use this code, please cite the [THINGS-EEG2 paper](https://www.sciencedirect.com/science/article/pii/S1053811922008758?via%3Dihub):
 > Gifford, A. T., Lahner, B., Saba-Sadiya, S., Vilas, M. G., Lascelles, A., Oliva, A., ... & Cichy, R. M. (2022). The THINGS-EEG2 dataset. Scientific Data.
 
 ## License
