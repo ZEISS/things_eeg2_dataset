@@ -73,7 +73,7 @@ source ~/.zshrc
 
 ## Usage
 
-![things_eeg2_dataset demo](https://raw.githubusercontent.com/ZEISS/things_eeg2_dataset/refs/heads/main/.github/assets/demo/demo-light.png#gh-light-mode-only)
+![things_eeg2_dataset demo](https://raw.githubusercontent.com/ZEISS/things_eeg2_dataset/refs/heads/main/.github/assets/demo/demo-light.gif#gh-light-mode-only)
 ![things_eeg2_dataset demo](https://raw.githubusercontent.com/ZEISS/things_eeg2_dataset/refs/heads/main/.github/assets/demo/demo-dark.gif#gh-dark-mode-only)
 
 ## Data Structure
