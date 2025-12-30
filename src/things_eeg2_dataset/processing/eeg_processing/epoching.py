@@ -49,7 +49,7 @@ class PrefetchLoader:
         return result
 
 
-def epoch(
+def epoching(
     subject: int,
     project_dir: Path,
     sampling_frequency: int,
@@ -186,6 +186,6 @@ def epoch(
         img_conditions.append(img_cond)
         del sorted_data
 
-    print(f"Epoched data shape: {[d.shape for d in epoched_data]}")
+    logger.debug(f"Epoched data shape: {[d.shape for d in epoched_data]}")
 
     return epoched_data, img_conditions, ch_names, times

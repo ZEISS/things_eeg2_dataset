@@ -4,20 +4,20 @@ from importlib.resources import as_file, files
 from pathlib import Path
 
 import typer
-from rich import print  # noqa: A004
+from rich import print as rprint
 from rich.panel import Panel
 
 
 def run_streamlit(app_path: Path, project_dir: Path) -> None:
     if not app_path.exists():
-        print(f"[bold red]Error:[/bold red] Could not find Streamlit app at {app_path}")
+        rprint(f"[bold red]Error:[/bold red] Could not find Streamlit app at {app_path}")
         raise typer.Exit(code=1)
 
     welcome_msg = (
         f"[bold]Project Directory:[/bold] {project_dir}\n"
         "[yellow]Press Ctrl+C to stop the server[/yellow]"
     )
-    print(Panel(welcome_msg, title="🚀 THINGS EEG2 EXPLORER", border_style="green"))
+    rprint(Panel(welcome_msg, title="🚀 THINGS EEG2 EXPLORER", border_style="green"))
 
     os.environ["STREAMLIT_BROWSER_GATHER_USAGE_STATS"] = "false"
 
@@ -32,9 +32,9 @@ def run_streamlit(app_path: Path, project_dir: Path) -> None:
     try:
         subprocess.run(cmd, check=True)  # noqa: S603
     except KeyboardInterrupt:
-        print("\n[green]Explorer stopped.[/green]")
+        rprint("\n[green]Explorer stopped.[/green]")
     except subprocess.CalledProcessError:
-        print("\n[bold red]Streamlit crashed.[/bold red]")
+        rprint("\n[bold red]Streamlit crashed.[/bold red]")
         raise typer.Exit(code=1) from None
 
 

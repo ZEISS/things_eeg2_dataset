@@ -6,10 +6,6 @@ import pytest
 
 from things_eeg2_dataset.processing.downloading.downloader import Downloader
 
-# ============================================================================
-# Helpers & Fixtures
-# ============================================================================
-
 
 def create_mock_subject(root_dir: Path, subject_id: int, valid: bool = True) -> Path:
     """Helper to create a dummy subject directory structure on disk."""
@@ -67,11 +63,6 @@ def test_zip_file(tmp_path: Path) -> Path:
     return zip_path
 
 
-# ============================================================================
-# Unit Tests: Initialization
-# ============================================================================
-
-
 def test_init_default_parameters(tmp_path: Path) -> None:
     """Test initialization with default parameters."""
     d = Downloader(project_dir=tmp_path)
@@ -101,11 +92,6 @@ def test_init_dry_run_is_safe(tmp_path: Path) -> None:
     assert not (data_path / "raw_data").exists()
 
 
-# ============================================================================
-# Unit Tests: Logic & Validation
-# ============================================================================
-
-
 def test_check_if_exists_valid(downloader: Downloader) -> None:
     """Test checking existence with valid extracted structure."""
     create_mock_subject(downloader.raw_dir, 1, valid=True)
@@ -131,11 +117,6 @@ def test_validate_structure_missing_files(downloader: Downloader) -> None:
     (sub_path / "ses-01" / "raw_eeg_training.npy").unlink()
 
     assert downloader._validate_subject_structure(sub_path) is False
-
-
-# ============================================================================
-# Integration Tests: Workflows
-# ============================================================================
 
 
 def test_download_raw_data_summary(downloader: Downloader) -> None:

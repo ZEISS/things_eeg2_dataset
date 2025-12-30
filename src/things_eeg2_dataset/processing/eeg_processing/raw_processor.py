@@ -21,7 +21,7 @@ from typing import Any
 import numpy as np
 
 from things_eeg2_dataset.paths import layout
-from things_eeg2_dataset.processing.eeg_processing.epoching import epoch
+from things_eeg2_dataset.processing.eeg_processing.epoching import epoching
 from things_eeg2_dataset.processing.eeg_processing.save import save_prepr
 from things_eeg2_dataset.processing.eeg_processing.whiten import mvnn_whiten
 
@@ -129,25 +129,23 @@ class RawProcessor:
         processed_path = self.processed_dir / f"sub-{subject:02d}/"
         return processed_path.exists() and len(list(processed_path.iterdir())) > 0
 
-    def epoch_and_sort(self, sub: int) -> None:
-        logger.info("=== Epoching and sorting data ===", extra={"bare": True})
-
-        logger.info("Epoching test data...", extra={"bare": True})
+    def epoch(self, sub: int) -> None:
+        logger.info("Epoching test data...")
         (
             self.epoched_test,
             self.img_conditions_test,
             self.ch_names,
             self.times,
-        ) = epoch(sub, self.project_dir, self.sampling_frequency, "test")
+        ) = epoching(sub, self.project_dir, self.sampling_frequency, "test")
 
-        logger.info("Epoching training data...", extra={"bare": True})
+        logger.info("Epoching training data...")
         (
             self.epoched_train,
             self.img_conditions_train,
             # Channel names and times are the same as for test data
             _,
             _,
-        ) = epoch(sub, self.project_dir, self.sampling_frequency, "training")
+        ) = epoching(sub, self.project_dir, self.sampling_frequency, "training")
 
     def apply_mvnn(self) -> None:
         if self.epoched_test is None or self.epoched_train is None:
@@ -155,9 +153,7 @@ class RawProcessor:
                 "Epoched data not found. Please run epoch_and_sort() first."
             )
 
-        logger.info(
-            "=== Applying Multivariate Noise Normalization ===", extra={"bare": True}
-        )
+        logger.info("=== Applying Multivariate Noise Normalization ===")
 
         self.whitened_test, self.whitened_train = mvnn_whiten(
             4, self.epoched_test, self.epoched_train
@@ -171,7 +167,7 @@ class RawProcessor:
         if self.whitened_test is None or self.whitened_train is None:
             raise ValueError("Whitened data not found. Please run apply_mvnn() first.")
 
-        logger.info("\n=== Saving preprocessed data ===")
+        logger.info("=== Saving preprocessed data ===")
 
         # Make sure that ch_names and times are not None
         if (
@@ -211,16 +207,12 @@ class RawProcessor:
         dry_run : bool, optional
             If True, only simulates the preprocessing without executing it (default: False).
         """
-        logger.info(f"Subjects:          {self.subjects}")
-        logger.info(f"Number of sessions: {self.number_of_sessions}")
-        logger.info(f"Sampling frequency: {self.sampling_frequency} Hz")
-        logger.info(f"Project directory:  {self.project_dir}")
 
         for subject in self.subjects:
-            logger.info(f"--- Processing subject: {subject} ---")
+            logger.info(f"Processing subject: {subject}")
             # only if processed data doesn't already exist or overwrite is True
             if not self._check_processed_data_exists() or overwrite:
-                self.epoch_and_sort(subject)
+                self.epoch(subject)
                 self.apply_mvnn()
                 if not dry_run:
                     self.save_preprocessed_data(subject)

@@ -2,7 +2,6 @@
 Generate image and text embeddings for THINGS-EEG2 dataset.
 """
 
-import argparse
 import logging
 from abc import ABC, abstractmethod
 from collections.abc import Callable
@@ -26,7 +25,7 @@ from transformers import (
     Dinov2WithRegistersModel,
 )
 
-from things_eeg2_dataset.cli.main import EmbeddingModel
+from things_eeg2_dataset.cli.main import EmbeddingModel, Partition
 from things_eeg2_dataset.paths import layout
 
 from .embedding_models import (
@@ -36,13 +35,15 @@ from .embedding_models import (
     Resampler,
 )
 
+__all__ = [
+    "BaseEmbedder",
+    "DinoV2Embedder",
+    "IPAdapterEmbedder",
+    "OpenAIClipVitL14Embedder",
+    "OpenClipViTH14Embedder",
+    "build_embedder",
+]
 logger = logging.getLogger(__name__)
-
-# Embedder names
-OPEN_CLIP_VIT_H_14 = "open-clip-vit-h-14"
-OPENAI_CLIP_VIT_L_14 = "openai-clip-vit-l-14"
-DINOV2 = "dinov2"
-IP_ADAPTER = "ip-adapter"
 
 
 class BaseEmbedder(ABC):
@@ -134,11 +135,11 @@ class BaseEmbedder(ABC):
                     Image.open(path).convert("RGB") for path in batch_paths
                 ]
                 img_embeds[i : i + batch_size] = image2embed(images).cpu()
-        print(f"Image embeddings shape: {img_embeds.shape}")
-        print(f"Text embeddings shape: {text_embeds.shape}")
+        logger.debug(f"Image embeddings shape: {img_embeds.shape}")
+        logger.debug(f"Text embeddings shape: {text_embeds.shape}")
 
         if self.dry_run:
-            print(f"Dry run enabled, not saving embeddings to {embeds_path}")
+            logger.info(f"Dry run enabled, not saving embeddings to {embeds_path}")
             return
 
         embeds_path = embeds_path.with_suffix(".safetensors")
@@ -153,7 +154,7 @@ class BaseEmbedder(ABC):
         logger.info(f"Saved embeddings to {embeds_path}")
 
     @abstractmethod
-    def generate_and_store_embeddings(self) -> None:
+    def generate_and_store_embeddings(self, dry_run: bool = False) -> None:
         """An abstract method for generating and storing all embeddings."""
         raise NotImplementedError
 
@@ -166,7 +167,7 @@ class BaseEmbedder(ABC):
         embed_dim: tuple[int, ...],
     ) -> None:
         if embeds_path.exists() and not self.overwrite:
-            print(f"Embeddings already exist at {embeds_path}, skipping.")
+            logger.warning(f"Embeddings already exist at {embeds_path}, skipping.")
             return
         self.store_embeddings(image_dir, embeds_path, image2embed, txt2embed, embed_dim)
 
@@ -207,6 +208,7 @@ class OpenClipViTH14Embedder(BaseEmbedder):
         self.text_encoder: Any = pipeline.text_encoder_2
         self.feature_extractor: CLIPImageProcessor = pipeline.feature_extractor
         self.image_encoder: CLIPVisionModelWithProjection = pipeline.image_encoder
+        self.project_dir = project_dir
 
     def transform_clip_vis(self, images: list[Image.Image]) -> Tensor:
         """Generates pooled image embeddings."""
@@ -244,13 +246,15 @@ class OpenClipViTH14Embedder(BaseEmbedder):
             inputs.input_ids.to(self.device)
         ).last_hidden_state.half()
 
-    def generate_and_store_embeddings(self) -> None:
+    def generate_and_store_embeddings(self, dry_run: bool = False) -> None:
         """Generates and stores all required embeddings for the model."""
         # Standard embedding
-        train_embeds_path: Path = (
-            self.embeds_dir / f"{self.model_type}_features_train.pt"
+        train_embeds_path = layout.get_embedding_file(
+            self.project_dir, self.model_type, Partition.TRAINING, full=False
         )
-        test_embeds_path: Path = self.embeds_dir / f"{self.model_type}_features_test.pt"
+        test_embeds_path = layout.get_embedding_file(
+            self.project_dir, self.model_type, Partition.TEST, full=False
+        )
         self._store_embeddings_if_needed(
             self.test_images_path,
             test_embeds_path,
@@ -267,10 +271,12 @@ class OpenClipViTH14Embedder(BaseEmbedder):
         )
 
         # Full token embedding
-        train_embeds_path = (
-            self.embeds_dir / f"{self.model_type}_features_train_full.pt"
+        train_embeds_path = layout.get_embedding_file(
+            self.project_dir, self.model_type, Partition.TRAINING, full=True
         )
-        test_embeds_path = self.embeds_dir / f"{self.model_type}_features_test_full.pt"
+        test_embeds_path = layout.get_embedding_file(
+            self.project_dir, self.model_type, Partition.TEST, full=True
+        )
         self._store_embeddings_if_needed(
             self.test_images_path,
             test_embeds_path,
@@ -315,6 +321,7 @@ class OpenAIClipVitL14Embedder(BaseEmbedder):
             "openai/clip-vit-large-patch14"
         )
         self.model.to(device)
+        self.project_dir = project_dir
 
     def encode_text_pooled(self, text: list[str]) -> Tensor:
         """Generates pooled text embeddings."""
@@ -370,13 +377,15 @@ class OpenAIClipVitL14Embedder(BaseEmbedder):
         z = z / torch.norm(z_pooled, dim=-1, keepdim=True)
         return z
 
-    def generate_and_store_embeddings(self) -> None:
+    def generate_and_store_embeddings(self, dry_run: bool = False) -> None:
         """Generates and stores all required embeddings for the model."""
         # Standard embedding
-        train_embeds_path: Path = (
-            self.embeds_dir / f"{self.model_type}_features_train.pt"
+        train_embeds_path = layout.get_embedding_file(
+            self.project_dir, self.model_type, Partition.TRAINING, full=False
         )
-        test_embeds_path: Path = self.embeds_dir / f"{self.model_type}_features_test.pt"
+        test_embeds_path = layout.get_embedding_file(
+            self.project_dir, self.model_type, Partition.TEST, full=False
+        )
         self._store_embeddings_if_needed(
             self.test_images_path,
             test_embeds_path,
@@ -393,10 +402,12 @@ class OpenAIClipVitL14Embedder(BaseEmbedder):
         )
 
         # Full token embedding
-        train_embeds_path = (
-            self.embeds_dir / f"{self.model_type}_features_train_full.pt"
+        train_embeds_path = layout.get_embedding_file(
+            self.project_dir, self.model_type, Partition.TRAINING, full=True
         )
-        test_embeds_path = self.embeds_dir / f"{self.model_type}_features_test_full.pt"
+        test_embeds_path = layout.get_embedding_file(
+            self.project_dir, self.model_type, Partition.TEST, full=True
+        )
         self._store_embeddings_if_needed(
             self.test_images_path,
             test_embeds_path,
@@ -434,6 +445,7 @@ class DinoV2Embedder(BaseEmbedder):
             )
         )
         self.dinov2_model.to(device)
+        self.project_dir = project_dir
 
     def transform_dinov2_vis_full(self, images: list[Image.Image]) -> Tensor:
         """Generates full sequence image embeddings."""
@@ -455,16 +467,21 @@ class DinoV2Embedder(BaseEmbedder):
 
     def transform_dinov2_text(self, texts: list[str]) -> Tensor:
         """Returns a dummy tensor as DINOv2 is vision-only."""
-        print("WARNING: DINOv2 cannot be used for text, returning dummy tensor")
+        logger.warning(
+            "WARNING: DINOv2 cannot be used for text, returning dummy tensor"
+        )
         return torch.tensor(0.0, device=self.device).half()
 
-    def generate_and_store_embeddings(self) -> None:
+    def generate_and_store_embeddings(self, dry_run: bool = False) -> None:
         """Generates and stores all required embeddings for the model."""
         # CLS token embedding
-        train_embeds_path: Path = (
-            self.embeds_dir / f"{self.model_type}_features_train.pt"
+        train_embeds_path = layout.get_embedding_file(
+            self.project_dir, self.model_type, Partition.TRAINING, full=False
         )
-        test_embeds_path: Path = self.embeds_dir / f"{self.model_type}_features_test.pt"
+        test_embeds_path = layout.get_embedding_file(
+            self.project_dir, self.model_type, Partition.TEST, full=False
+        )
+
         self._store_embeddings_if_needed(
             self.test_images_path,
             test_embeds_path,
@@ -481,11 +498,11 @@ class DinoV2Embedder(BaseEmbedder):
         )
 
         # CLS + Register tokens embedding
-        train_embeds_path = (
-            self.embeds_dir / f"{self.model_type}_features_train_registers.pt"
+        train_embeds_path = layout.get_embedding_file(
+            self.project_dir, self.model_type, Partition.TRAINING, full=False
         )
-        test_embeds_path = (
-            self.embeds_dir / f"{self.model_type}_features_test_registers.pt"
+        test_embeds_path = layout.get_embedding_file(
+            self.project_dir, self.model_type, Partition.TEST, full=False
         )
         self._store_embeddings_if_needed(
             self.test_images_path,
@@ -509,10 +526,12 @@ class DinoV2Embedder(BaseEmbedder):
         )
 
         # All tokens embedding
-        train_embeds_path = (
-            self.embeds_dir / f"{self.model_type}_features_train_full.pt"
+        train_embeds_path = layout.get_embedding_file(
+            self.project_dir, self.model_type, Partition.TRAINING, full=True
         )
-        test_embeds_path = self.embeds_dir / f"{self.model_type}_features_test_full.pt"
+        test_embeds_path = layout.get_embedding_file(
+            self.project_dir, self.model_type, Partition.TEST, full=True
+        )
         self._store_embeddings_if_needed(
             self.test_images_path,
             test_embeds_path,
@@ -571,6 +590,7 @@ class IPAdapterEmbedder(BaseEmbedder):
         self.ip_adapter_proj.to(device).eval()
         self.feature_extractor: CLIPImageProcessor = pipeline.feature_extractor
         self.image_encoder = pipeline.image_encoder
+        self.project_dir = project_dir
 
     def _load_ipa_proj_model(
         self, plus_model: bool = True, device: str = "cuda:0"
@@ -640,7 +660,9 @@ class IPAdapterEmbedder(BaseEmbedder):
 
     def transform_dummy_text(self, texts: list[str]) -> Tensor:
         """Returns a dummy tensor as IP-Adapter is vision-only."""
-        print("WARNING: IP-Adapter is for images, returning dummy tensor for text")
+        logger.warning(
+            "WARNING: IP-Adapter is for images, returning dummy tensor for text"
+        )
         return torch.tensor(0.0, device=self.device).half()
 
     def generate_and_store_embeddings(self) -> None:
@@ -666,80 +688,20 @@ class IPAdapterEmbedder(BaseEmbedder):
 
 
 EMBEDDER_DICT = {
-    OPEN_CLIP_VIT_H_14: OpenClipViTH14Embedder,
-    OPENAI_CLIP_VIT_L_14: OpenAIClipVitL14Embedder,
-    DINOV2: DinoV2Embedder,
-    IP_ADAPTER: IPAdapterEmbedder,
+    EmbeddingModel.OPEN_CLIP_VIT_H_14: OpenClipViTH14Embedder,
+    EmbeddingModel.OPENAI_CLIP_VIT_L_14: OpenAIClipVitL14Embedder,
+    EmbeddingModel.DINO_V2: DinoV2Embedder,
+    EmbeddingModel.IP_ADAPTER: IPAdapterEmbedder,
 }
 
 
 def build_embedder(
-    model_type: str,
+    model_type: EmbeddingModel,
     project_dir: Path,
     overwrite: bool = False,
     dry_run: bool = False,
     device: str = "cuda:0",
 ) -> BaseEmbedder:
     """Factory function to build the appropriate embedder based on model type."""
-    if model_type not in EMBEDDER_DICT:
-        raise ValueError(f"Unknown model type: {model_type}")
     embedder_class = EMBEDDER_DICT[model_type]
     return embedder_class(project_dir, overwrite, dry_run, device)  # type: ignore[abstract]
-
-
-__all__ = [
-    "BaseEmbedder",
-    "DinoV2Embedder",
-    "IPAdapterEmbedder",
-    "OpenAIClipVitL14Embedder",
-    "OpenClipViTH14Embedder",
-    "build_embedder",
-]
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Generate image and text embeddings for THINGS-EEG2 dataset."
-    )
-    parser.add_argument(
-        "-m",
-        "--model",
-        type=str,
-        choices=[
-            "open-clip-vit-h-14",
-            "openai-clip-vit-l-14",
-            "dinov2",
-            "ip-adapter",
-        ],
-        required=True,
-        help="Model type to use for generating embeddings.",
-    )
-    parser.add_argument(
-        "-p",
-        "--project_dir",
-        type=str,
-        default="data/things-eeg2/Image_set/",
-        help="Path to the image dataset directory.",
-    )
-    parser.add_argument(
-        "-f",
-        "--overwrite",
-        action="store_true",
-        help="overwrite reprocessing of existing embeddings.",
-    )
-    parser.add_argument(
-        "-d",
-        "--dry_run",
-        action="store_true",
-        help="Simulate processing without saving embeddings.",
-    )
-    args: argparse.Namespace = parser.parse_args()
-
-    embedder: BaseEmbedder = build_embedder(
-        args.model,
-        project_dir=Path(args.project_dir),
-        overwrite=args.overwrite,
-        dry_run=args.dry_run,
-        device="cuda:0",
-    )
-    embedder.generate_and_store_embeddings()

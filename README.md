@@ -7,9 +7,9 @@
 <div align="center">
 
 [![PyPI][pypi-badge]][pypi]
+[![Conda Platform][conda-badge]][conda-url]
 [![License][license-badge]][license-url]
 [![CI Status][ci-badge]][ci-url]
-<!-- [![Conda Platform][conda-badge]][conda-url] -->
 
 [pypi-badge]: https://img.shields.io/pypi/v/things_eeg2_dataset?style=flat-square&label=PyPI
 [pypi]: https://pypi.org/project/things-eeg2-dataset/
@@ -20,13 +20,14 @@
 [ci-badge]: https://img.shields.io/github/actions/workflow/status/zeiss/things_eeg2_dataset/ci.yml?branch=main&style=flat-square&label=CI
 [ci-url]: https://github.com/zeiss/things_eeg2_dataset/actions/workflows/ci.yml
 
-<!-- [conda-badge]: https://img.shields.io/conda/vn/conda-forge/things_eeg2_dataset?style=flat-square -->
+[conda-badge]: https://img.shields.io/conda/vn/conda-forge/things_eeg2_dataset?style=flat-square
+[conda-url]: https://prefix.dev/channels/conda-forge/packages/things_eeg2_dataset
 
 </div>
 
 # Introduction
 
-This package provides tools for downloading, preprocessing raw THINGS-EEG2 EEG data, and generating image embeddings from various vision models.
+This package provides tools for downloading, preprocessing the raw THINGS-EEG2 data, and generating image embeddings using various vision models.
 
 > [!WARNING]
 > This repository builds upon the original data processing by [Gifford et al (2022)](https://github.com/gifale95/eeg_encoding).
@@ -36,6 +37,22 @@ This package provides tools for downloading, preprocessing raw THINGS-EEG2 EEG d
 > Nonetheless we hope, that this makes things easier (pun intended) to use.
 
 ## Installation
+
+### CLI-only
+
+If you only need the CLI functionality, you can run it using one line of code:
+
+#### Using the PyPI package (with uv)
+
+```bash
+uvx run --from things_eeg2_dataset things-eeg2
+```
+
+#### Using the conda package (with pixi)
+
+```bash
+pixi exec --with things_eeg2_dataset things-eeg2
+```
 
 ### From GitHub
 
@@ -62,6 +79,22 @@ source ~/.zshrc
 uv init
 uv add things_eeg2_dataset
 source .venv/bin/activate
+
+things-eeg2 --help
+things-eeg2 --install-completion
+
+# Then restart your shell
+# Example for zsh:
+source ~/.zshrc
+```
+
+### Using the conda package
+
+```bash
+# Using pixi    
+pixi init
+pixi add things_eeg2_dataset
+pixi shell
 
 things-eeg2 --help
 things-eeg2 --install-completion
@@ -102,10 +135,10 @@ Each embedder generates:
 
 ```bash
 embeddings/
-├── ViT-H-14_features_training.pt           # Pooled embeddings
-├── ViT-H-14_features_training_full.pt      # Full token sequences
-├── ViT-H-14_features_test.pt
-└── ViT-H-14_features_test_full.pt
+├── ViT-H-14_features_training.safetensors           # Pooled embeddings
+├── ViT-H-14_features_training_full.safetensors      # Full token sequences
+├── ViT-H-14_features_test.safetensors
+└── ViT-H-14_features_test_full.safetensors
 ```
 
 ### Using the dataloader

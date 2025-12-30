@@ -9,6 +9,9 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from rich import print as rprint
+from rich.table import Table
+
 from things_eeg2_dataset.cli.main import EmbeddingModel, Partition
 from things_eeg2_dataset.paths import layout
 from things_eeg2_dataset.processing import (
@@ -33,11 +36,6 @@ class PipelineError(Exception):
 @dataclass(frozen=True)
 class PipelineConfig:
     """Immutable configuration for the pipeline execution."""
-
-    # Steps of pipeline:
-    # 1. Download zip files containing raw data in raw_data format
-    # 2. Unpack zip files and optionally remove the zip files
-    # 3. Process raw EEG data into preprocessed format and save to processed directory (containing subfolders for each subject in the format "sub-XX")
 
     project_dir: Path
     subjects: list[int]
@@ -109,16 +107,16 @@ def get_git_commit_hash() -> str:
 class ThingsEEGPipeline:
     def __init__(self, config: PipelineConfig) -> None:
         self.cfg = config
+        self._log_config()
 
     def run(self) -> None:
-        self._log_header("PIPELINE START")
-        self._log_config()
+        logger.info("PIPELINE START")
 
         # 1. Download
         if not self.cfg.skip_download:
             self.step_download_data()
         else:
-            self._log_header("Raw Data Download", skipped=True)
+            logger.info("=== Raw Data Download (SKIPPED) ===")
 
         # Pre-flight check
         if not self.validate_pipeline_inputs():
@@ -129,13 +127,13 @@ class ThingsEEGPipeline:
         if not self.cfg.skip_processing:
             self.step_process_eeg()
         else:
-            self._log_header("EEG Preprocessing", skipped=True)
+            logger.info("=== EEG Preprocessing (SKIPPED) ===")
 
         # 3. Embeddings
         if self.cfg.create_embeddings:
             self.step_generate_embeddings()
         else:
-            self._log_header("Embedding Generation", skipped=True)
+            logger.info("=== Embedding Generation (SKIPPED) ===")
 
         # 4. Validation & Versioning
         self.validate_pipeline_outputs()
@@ -143,33 +141,24 @@ class ThingsEEGPipeline:
 
         logger.info("Pipeline completed successfully.")
 
-    def _log_header(self, title: str, skipped: bool = False) -> None:
-        """Logs a styled header. If skipped, uses a dimmer color."""
-        if skipped:
-            msg = f"{title} (SKIPPED)"
-            BRIGHT_BLACK = "\033[90m"
-            color = BRIGHT_BLACK  # Grey/Dim
-        else:
-            msg = title
-            BLUE = "\033[94m"
-            color = BLUE
-
-        border = "=" * 80
-        text = f"\n{color}{border}\n{msg}\n{border}\n\033[0m"
-        logger.info(text, extra={"bare": True})
-
     def _log_config(self) -> None:
-        """Pretty prints the configuration."""
-        lines = ["Configuration:"]
-        for field_name, value in self.cfg.__dict__.items():
-            # Align keys for better readability
-            lines.append(f"  {field_name:<20}: {value}")
+        """Pretty prints the configuration using a Rich Table."""
+        if logger.isEnabledFor(logging.DEBUG):
+            table = Table(
+                title="Configuration Settings",
+                show_header=True,
+                header_style="bold magenta",
+            )
+            table.add_column("Field", style="dim", width=25)
+            table.add_column("Value")
 
-        text = "\n".join(lines)
-        logger.info(text, extra={"bare": True})
+            for field_name, value in self.cfg.__dict__.items():
+                table.add_row(field_name, str(value))
+
+            rprint(table)
 
     def step_download_data(self) -> None:
-        self._log_header("Raw Data Download")
+        logger.info("=== Raw Data Download ===")
         downloader = Downloader(
             project_dir=self.cfg.project_dir,
             subjects=self.cfg.subjects,
@@ -190,7 +179,7 @@ class ThingsEEGPipeline:
         logger.info(f"Images downloaded: {img_res}")
 
     def step_process_eeg(self) -> None:
-        self._log_header("EEG Preprocessing")
+        logger.info("=== EEG Preprocessing ===")
         processor = RawProcessor(
             subjects=self.cfg.subjects,
             project_dir=self.cfg.project_dir,
@@ -199,28 +188,26 @@ class ThingsEEGPipeline:
         processor.run(overwrite=self.cfg.overwrite, dry_run=self.cfg.dry_run)
 
     def step_generate_embeddings(self) -> None:
-        self._log_header("Embedding Generation")
+        logger.info("=== Embedding Generation ===")
 
         for model_name in self.cfg.models:
-            BLUE = "\033[94m"
-            RESET = "\033[0m"
-            logger.info(f"Generating: {BLUE}{model_name}{RESET}")
+            logger.info(f"Generating: [blue]{model_name}[/blue]")
             try:
                 embedder = build_embedder(
                     model_type=model_name,
-                    project_dir=layout.get_images_dir(self.cfg.project_dir),
+                    project_dir=self.cfg.project_dir,
                     overwrite=self.cfg.overwrite,
                     dry_run=self.cfg.dry_run,
                     device=self.cfg.device,
                 )
-                embedder.generate_and_store_embeddings()
+                embedder.generate_and_store_embeddings(dry_run=self.cfg.dry_run)
             except Exception as e:
                 logger.error(f"Failed to generate {model_name}: {e}")
                 if not self.cfg.dry_run:
                     raise
 
     def validate_pipeline_outputs(self) -> None:
-        self._log_header("Final Validation")
+        logger.info("=== Final Validation ===")
 
         # 1. Check EEG files
         for sub in self.cfg.subjects:

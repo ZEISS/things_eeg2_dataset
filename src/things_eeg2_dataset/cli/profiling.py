@@ -9,7 +9,7 @@ import webbrowser
 from collections.abc import Callable
 from pathlib import Path
 
-from rich import print  # noqa: A004
+from rich import print as rprint
 from rich.panel import Panel
 
 
@@ -33,7 +33,7 @@ def show_profiling(project_dir: Path, serve: bool, list_all: bool, port: int) ->
         local_ip = get_local_ip()
         localhost_url = f"http://localhost:{port}"
         network_url = f"http://{local_ip}:{port}"
-        print(
+        rprint(
             Panel(
                 f"[bold]Serving Profiling Reports[/bold]\n"
                 f"[dim]Directory: {profile_dir}[/dim]\n\n"
@@ -51,20 +51,20 @@ def show_profiling(project_dir: Path, serve: bool, list_all: bool, port: int) ->
             with socketserver.TCPServer(("0.0.0.0", port), Handler) as httpd:  # noqa: S104
                 httpd.serve_forever()
         except KeyboardInterrupt:
-            print("\n[yellow]Server stopped.[/yellow]")
+            rprint("\n[yellow]Server stopped.[/yellow]")
         return
 
     if list_all:
-        print(f"[bold]Found {len(reports)} reports in {profile_dir}:[/bold]")
+        rprint(f"[bold]Found {len(reports)} reports in {profile_dir}:[/bold]")
         for r in reports:
-            print(
+            rprint(
                 f" - {r.name} ({datetime.datetime.fromtimestamp(r.stat().st_mtime, datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')})"
             )
         return
 
     # Open the newest one
     latest_report = reports[0]
-    print(f"[green]Opening latest report:[/green] {latest_report.name}")
+    rprint(f"[green]Opening latest report:[/green] {latest_report.name}")
     webbrowser.open(latest_report.as_uri())
 
 
@@ -123,7 +123,7 @@ def run_with_profiling(
 
     output_path.write_text(profiler.output_html())
 
-    print(f"\n[green]Profiling report saved to:[/green] {output_path}")
+    rprint(f"\n[green]Profiling report saved to:[/green] {output_path}")
 
     _maybe_open_report(output_path, open_report=open_report)
 
@@ -135,11 +135,11 @@ def _maybe_open_report(path: Path, *, open_report: bool) -> None:
     is_headless = os.environ.get("DISPLAY") is None
 
     if is_headless:
-        print("[yellow]Headless environment detected. Skipping auto-open.[/yellow]")
-        print(
+        rprint("[yellow]Headless environment detected. Skipping auto-open.[/yellow]")
+        rprint(
             "Run [bold cyan]things-eeg2 view-profile --serve[/bold cyan] to view it remotely."
         )
         return
 
-    print("[yellow]Opening report in browser...[/yellow]")
+    rprint("[yellow]Opening report in browser...[/yellow]")
     webbrowser.open(path.as_uri())

@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from rich import print  # noqa: A004
+from rich import print as rprint
 
 from things_eeg2_dataset import __version__
 from things_eeg2_dataset.cli.logger import setup_logging
@@ -38,7 +38,7 @@ DEFAULT_PROJECT_DIR = Path.home() / "things_eeg2"
 
 def version_callback(value: bool) -> None:
     if value:
-        print(f"{__package__.split('.')[0]} version: [green]{__version__}[/green]")
+        rprint(f"{__package__.split('.')[0]} version: [green]{__version__}[/green]")
         raise typer.Exit()
 
 
@@ -301,7 +301,7 @@ def info(
         partition=partition,
     )
 
-    print(info)
+    rprint(info)
 
 
 @app.command(name="show")
