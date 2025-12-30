@@ -91,7 +91,7 @@ source ~/.zshrc
 ### Using the conda package
 
 ```bash
-# Using pixi    
+# Using pixi  
 pixi init
 pixi add things_eeg2_dataset
 pixi shell

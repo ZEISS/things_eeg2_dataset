@@ -10,7 +10,9 @@ from rich.panel import Panel
 
 def run_streamlit(app_path: Path, project_dir: Path) -> None:
     if not app_path.exists():
-        rprint(f"[bold red]Error:[/bold red] Could not find Streamlit app at {app_path}")
+        rprint(
+            f"[bold red]Error:[/bold red] Could not find Streamlit app at {app_path}"
+        )
         raise typer.Exit(code=1)
 
     welcome_msg = (
