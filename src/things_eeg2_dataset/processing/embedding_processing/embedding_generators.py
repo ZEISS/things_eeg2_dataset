@@ -665,7 +665,7 @@ class IPAdapterEmbedder(BaseEmbedder):
         )
         return torch.tensor(0.0, device=self.device).half()
 
-    def generate_and_store_embeddings(self) -> None:
+    def generate_and_store_embeddings(self, dry_run: bool = False) -> None:
         """Generates and stores all required embeddings for the model."""
         train_embeds_path: Path = (
             self.embeds_dir / f"{self.model_type}_features_train.pt"
