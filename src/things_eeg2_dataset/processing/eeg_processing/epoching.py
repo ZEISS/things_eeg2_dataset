@@ -178,9 +178,9 @@ def epoching(
 
         del data
 
-        # remove pre-stimulus period (200ms)
-        pre_stim_samples = int(0.2 * sampling_frequency)
-        sorted_data = sorted_data[:, :, :, pre_stim_samples:].astype(np.float32)
+        # Keep pre-stimulus period. Users can select a time window (including negative
+        # time) at dataset load time.
+        sorted_data = sorted_data.astype(np.float32)
 
         epoched_data.append(sorted_data)
         img_conditions.append(img_cond)
