@@ -16,7 +16,7 @@ class DataDirectoryLayout:
     source_dir: str = "source_data"
     images_dir: str = "Image_set"
     processed_dir: str = "processed"
-    embeddings_dir: str = "embeddings"
+    embeddings_dir: str = "image_embeddings"
 
     # Subdirectories
     train_imgs_dir: str = "training_images"
@@ -28,9 +28,9 @@ class DataDirectoryLayout:
 
     processed_subdir_template: str = "sub-{subject:02d}"
 
-    # Shape: (sessions, conditions, repetitions, channels, timepoints) -> (4, 8270, 2, 64, 251)
+    # Shape: (sessions, conditions, repetitions, channels, timepoints) -> (4, 8270, 2, 64, 301)
     eeg_train_template: str = "preprocessed_eeg_training_sub-{subject:02d}.npy"
-    # Shape: (sessions, conditions, repetitions, channels, timepoints) -> (4, 200, 20, 64, 251)
+    # Shape: (sessions, conditions, repetitions, channels, timepoints) -> (4, 200, 20, 64, 301)
     eeg_test_template: str = "preprocessed_eeg_test_sub-{subject:02d}.npy"
 
     # Shape: (sessions, conditions) -> (4, 8270)
@@ -108,13 +108,14 @@ class DataDirectoryLayout:
         )
 
     def get_embedding_file(
-        self, root: Path, model_name: str, partition: Partition, full: bool
+        self, root: Path, model_name: str, partition: Partition, full: bool, variant: str = None
     ) -> Path:
+        variant_suffix = f"_{variant}" if variant else ""
         full_suffix = "_full" if full else ""
         return self.get_embeddings_dir(root) / self.embedding_template.format(
             model=model_name,
             partition=partition.value,
-            full_suffix=full_suffix,
+            full_suffix=f"{variant_suffix}{full_suffix}",
         )
 
     def get_version_file(self, root: Path) -> Path:

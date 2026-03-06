@@ -26,25 +26,26 @@ uv sync
 ### Basic Usage
 
 ```python
-from things_eeg2_dataloader import ThingsEEGDataset
+from things_eeg2_dataset.cli.main import Partition
+from things_eeg2_dataset.dataloader import DatasetConfig, ThingsEEGDataset
 
 # Training dataset
 train_dataset = ThingsEEGDataset(
-    image_model="ViT-H-14",
-    data_path="/path/to/processed_data",
-    img_directory_training="/path/to/images/train",
-    img_directory_test="/path/to/images/test",
-    embeddings_dir="/path/to/embeddings",
-    train=True,
-    subjects=["sub-01", "sub-02", "sub-03"],
-    time_window=(0.0, 1.0),  # seconds
-    load_images=False,
+    DatasetConfig(
+        project_dir="/path/to/things_eeg2",
+        subjects=[1, 2, 3],
+        partition=Partition.TRAINING,
+        image_model="siglip2-base-patch16-224",
+        embed_variant="pooled",
+        time_window=(0.0, 1.0),  # seconds
+        load_images=False,
+    )
 )
 
 # Access single item
 item = train_dataset[0]
 print(item.brain_signal.shape)    # (channels, timepoints)
-print(item.embedding.shape)        # (embed_dim,) or (n_tokens, embed_dim)
+print(item.image_embedding.shape)        # (embed_dim,) or (n_tokens, embed_dim)
 print(item.subject)                # subject index
 print(item.image_id)               # image index
 print(item.text)                   # image caption
@@ -63,27 +64,26 @@ dataloader = DataLoader(
 )
 
 for batch in dataloader:
-    eeg = batch.brain_signal        # (batch, channels, time)
-    embeddings = batch.embedding    # (batch, embed_dim)
+    eeg = batch.brain_signal     # (batch, channels, time)
+    emb = batch.image_embedding  # (batch, embed_dim)
     # ... training code
 ```
 
 ### Using Lightning DataModule
 
 ```python
-from things_eeg2_dataloader import ThingsEEGDataModule
+from things_eeg2_dataset.dataloader import DataModuleConfig, ThingsEEGDataModule
 
 datamodule = ThingsEEGDataModule(
-    image_model="ViT-H-14",
-    data_path="/path/to/processed_data",
-    img_directory_training="/path/to/images/train",
-    img_directory_test="/path/to/images/test",
-    embeddings_dir="/path/to/embeddings",
-    subjects=["sub-01", "sub-02"],
-    time_window=(0.0, 1.0),
-    batch_size=32,
-    num_workers=4,
-    val_split_classes=200,  # Hold out 200 classes for validation
+    DataModuleConfig(
+        project_dir="/path/to/things_eeg2",
+        subjects=[1, 2],
+        image_model="siglip2-base-patch16-224",
+        embed_variant="pooled",
+        time_window=(0.0, 1.0),
+        batch_size=32,
+        num_workers=4,
+    )
 )
 
 # Use with Lightning Trainer
@@ -95,7 +95,7 @@ trainer.fit(model, datamodule=datamodule)
 
 ## Dataset Output
 
-The `ThingsEEGDataset` returns `ThingsEEGItem` dataclass instances with the following fields:
+The `ThingsEEGDataset` returns `ThingsEEGItem` NamedTuple instances with the following fields:
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -108,27 +108,25 @@ The `ThingsEEGDataset` returns `ThingsEEGItem` dataclass instances with the foll
 | `repetition` | `int` | EEG repetition number (or -1 for averaged test data) |
 | `channel_positions` | `torch.Tensor` | 2D channel positions, shape `(channels, 2)` |
 | `text` | `str` | Image caption |
-| `image` | `Path` or `Tensor` | Image path or loaded tensor (if `load_images=True`) |
+| `image` | `str` or `torch.Tensor` | Image path (string) or loaded tensor (if `load_images=True`) |
 
 ## Configuration Options
 
 ### Dataset Parameters
 
 ```python
-ThingsEEGDataset(
-    image_model: str,                    # Embedding model name (e.g., "ViT-H-14")
-    data_path: str,                      # Path to processed EEG data
-    img_directory_training: str,         # Path to training images
-    img_directory_test: str,             # Path to test images
-    embeddings_dir: str,                 # Path to embedding files
-    embed_stats_dir: str | None = None,  # Optional normalization statistics
-    normalize_embed: bool = True,        # Normalize embeddings
-    flat_embed: bool = False,            # Flatten multi-token embeddings
-    subjects: list[str] | None = None,   # Subject IDs (default: all 10)
-    exclude_subs: list[str] | None = None,  # Subjects to exclude
-    train: bool = True,                  # Training (True) or test (False) partition
-    time_window: tuple = (0, 1.0),       # Time window in seconds
-    load_images: bool = False,           # Load actual images (vs. paths)
+DatasetConfig(
+    project_dir: Path,
+    subjects: list[int],
+    partition: Partition | Literal["training", "test"],
+    use_image_embeddings: bool = True,
+    allow_missing_image_embeddings: bool = True,
+    image_model: str | None = "siglip2-base-patch16-224",
+    embed_variant: str = "pooled",
+    embed_full: bool = False,
+    image_embeddings_dir: Path | None = None,
+    load_images: bool = False,
+    time_window: tuple[float, float] = (0.0, 1.0),
 )
 ```
 
@@ -247,26 +245,26 @@ print(type(item.image))  # PIL.Image.Image or torch.Tensor
 ## Example: Training Loop
 
 ```python
-import torch
-from things_eeg2_dataloader import ThingsEEGDataModule
+from pathlib import Path
+from things_eeg2_dataset.dataloader import DataModuleConfig, ThingsEEGDataModule
 
 # Setup data
 datamodule = ThingsEEGDataModule(
-    image_model="ViT-H-14",
-    data_path="./processed",
-    img_directory_training="./images/train",
-    img_directory_test="./images/test",
-    embeddings_dir="./embeddings",
-    subjects=["sub-01"],
-    time_window=(0.0, 1.0),
-    batch_size=64,
+    DataModuleConfig(
+        project_dir=Path.home() / "things_eeg2",
+        subjects=[1],
+        image_model="siglip2-base-patch16-224",
+        embed_variant="pooled",
+        time_window=(0.0, 1.0),
+        batch_size=64,
+    )
 )
 
 # Training
 for epoch in range(100):
     for batch in datamodule.train_dataloader():
         eeg = batch.brain_signal        # (batch, 63, time)
-        target_embed = batch.embedding  # (batch, 1024)
+        target_embed = batch.image_embedding  # (batch, 1024)
 
         # Forward pass
         pred_embed = model(eeg)
