@@ -10,14 +10,14 @@ from things_eeg2_dataset.dataloader.datamodule import ThingsEEGDataModule
 from things_eeg2_dataset.paths import layout
 
 
-def _make_min_project(project_dir) -> None:
+def _make_min_project(project_dir) -> None:  # noqa: ANN001
     layout.get_processed_dir(project_dir).mkdir(parents=True, exist_ok=True)
     layout.get_embeddings_dir(project_dir).mkdir(parents=True, exist_ok=True)
     layout.get_training_images_dir(project_dir).mkdir(parents=True, exist_ok=True)
     layout.get_test_images_dir(project_dir).mkdir(parents=True, exist_ok=True)
 
 
-def _write_subject_training(project_dir, subject: int, *, raw_ids: np.ndarray) -> None:
+def _write_subject_training(project_dir, subject: int, *, raw_ids: np.ndarray) -> None:  # noqa: ANN001
     """Write minimal processed training files.
 
     raw_ids: shape (sessions, conditions) with 1-based image ids.
@@ -51,7 +51,7 @@ def _write_subject_training(project_dir, subject: int, *, raw_ids: np.ndarray) -
         (class2 / "00001.jpg").write_bytes(b"\xff\xd8\xff\xd9")
 
 
-def _write_subject_test(project_dir, subject: int) -> None:
+def _write_subject_test(project_dir, subject: int) -> None:  # noqa: ANN001
     layout.get_processed_subject_dir(project_dir, subject).mkdir(
         parents=True, exist_ok=True
     )
@@ -65,7 +65,7 @@ def _write_subject_test(project_dir, subject: int) -> None:
     )
 
 
-def _write_embeddings(project_dir) -> None:
+def _write_embeddings(project_dir) -> None:  # noqa: ANN001
     # Need index 10 (image id 11 -> 0-based 10)
     for part in (Partition.TRAINING, Partition.TEST):
         emb_path = layout.get_embedding_file(
@@ -84,7 +84,7 @@ def _write_embeddings(project_dir) -> None:
         )
 
 
-def test_trial_split_disjoint_indices(tmp_path) -> None:
+def test_trial_split_disjoint_indices(tmp_path) -> None:  # noqa: ANN001
     project_dir = tmp_path
     _make_min_project(project_dir)
     _write_subject_training(project_dir, 1, raw_ids=np.array([[1, 11]], dtype=np.int64))
@@ -115,7 +115,7 @@ def test_trial_split_disjoint_indices(tmp_path) -> None:
     assert train_idx.isdisjoint(train_eval_idx)
 
 
-def test_image_split_disjoint_image_ids(tmp_path) -> None:
+def test_image_split_disjoint_image_ids(tmp_path) -> None:  # noqa: ANN001
     project_dir = tmp_path
     _make_min_project(project_dir)
     _write_subject_training(project_dir, 1, raw_ids=np.array([[1, 11]], dtype=np.int64))
@@ -135,15 +135,15 @@ def test_image_split_disjoint_image_ids(tmp_path) -> None:
     )
     dm = ThingsEEGDataModule(cfg)
     dm.setup()
-    base = dm.train_dataset.dataset
+    base = dm.train_dataset.dataset  # type: ignore
     image_ids = base.get_image_ids()
 
-    train_image_ids = set(image_ids[list(dm.train_dataset.indices)])
-    val_image_ids = set(image_ids[list(dm.val_dataset.indices)])
+    train_image_ids = set(image_ids[list(dm.train_dataset.indices)])  # type: ignore
+    val_image_ids = set(image_ids[list(dm.val_dataset.indices)])  # type: ignore
     assert train_image_ids.isdisjoint(val_image_ids)
 
 
-def test_concept_split_disjoint_concepts(tmp_path) -> None:
+def test_concept_split_disjoint_concepts(tmp_path) -> None:  # noqa: ANN001
     project_dir = tmp_path
     _make_min_project(project_dir)
     _write_subject_training(project_dir, 1, raw_ids=np.array([[1, 11]], dtype=np.int64))
@@ -163,9 +163,9 @@ def test_concept_split_disjoint_concepts(tmp_path) -> None:
     )
     dm = ThingsEEGDataModule(cfg)
     dm.setup()
-    base = dm.train_dataset.dataset
+    base = dm.train_dataset.dataset  # type: ignore
     concept_ids = base.get_concept_ids()
 
-    train_concepts = set(concept_ids[list(dm.train_dataset.indices)])
-    val_concepts = set(concept_ids[list(dm.val_dataset.indices)])
+    train_concepts = set(concept_ids[list(dm.train_dataset.indices)])  # type: ignore
+    val_concepts = set(concept_ids[list(dm.val_dataset.indices)])  # type: ignore
     assert train_concepts.isdisjoint(val_concepts)

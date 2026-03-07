@@ -108,7 +108,12 @@ class DataDirectoryLayout:
         )
 
     def get_embedding_file(
-        self, root: Path, model_name: str, partition: Partition, full: bool, variant: str = None
+        self,
+        root: Path,
+        model_name: str,
+        partition: Partition,
+        full: bool,
+        variant: str | None = None,
     ) -> Path:
         variant_suffix = f"_{variant}" if variant else ""
         full_suffix = "_full" if full else ""

@@ -27,7 +27,7 @@ dependencies = [
     "psutil>=5.9.0",
     "packaging",
     "sentencepiece",
-] 
+]
 
 [dependency-groups]
 dev = [

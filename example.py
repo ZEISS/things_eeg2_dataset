@@ -8,7 +8,6 @@ from things_eeg2_dataset.dataloader import (
 )
 
 if __name__ == "__main__":
-
     # ---------- How to use the Dataset ----------
     train_ds = ThingsEEGDataset(
         DatasetConfig(
@@ -35,7 +34,6 @@ if __name__ == "__main__":
     print("train dataset length:", len(train_ds))
     print("test dataset length:", len(test_ds))
     print("eeg shape:", train_ds[0].brain_signal.shape)
-
 
     # ---------- How to use the DataModule ----------
     datamodule = ThingsEEGDataModule(

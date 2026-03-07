@@ -9,17 +9,23 @@ from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
+
 class NoURLFilter(logging.Filter):
     """Logging filter to exclude URL messages from logs."""
 
-    def filter(self, record):
-        return "URL:" not in record.getMessage() and "Following redirect to:" not in record.getMessage()
+    def filter(self, record):  # noqa: ANN001, ANN201
+        return (
+            "URL:" not in record.getMessage()
+            and "Following redirect to:" not in record.getMessage()
+        )
+
 
 logger.addFilter(NoURLFilter())
 
 PAGE_NOT_FOUND = 404
 
-def download_from_url(  # noqa: PLR0912
+
+def download_from_url(  # noqa: PLR0911, PLR0912, PLR0915
     url: str,
     dest_path: Path,
     description: str = "file",
@@ -46,13 +52,21 @@ def download_from_url(  # noqa: PLR0912
 
             # Create request with headers (enhanced for Figshare)
             request = Request(url)  # noqa: S310
-            request.add_header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
-            request.add_header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
+            request.add_header(
+                "User-Agent",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+            )
+            request.add_header(
+                "Accept",
+                "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            )
             request.add_header("Accept-Language", "en-US,en;q=0.5")
-            request.add_header("Accept-Encoding", "identity")  # Disable compression to get accurate file sizes
+            request.add_header(
+                "Accept-Encoding", "identity"
+            )  # Disable compression to get accurate file sizes
             request.add_header("Connection", "keep-alive")
             request.add_header("Upgrade-Insecure-Requests", "1")
-            
+
             # Special handling for Figshare URLs
             if "figshare.com" in url:
                 request.add_header("Referer", "https://figshare.com/")
@@ -60,8 +74,8 @@ def download_from_url(  # noqa: PLR0912
             # Open connection with longer timeout for large files
             with urlopen(request, timeout=300) as response:  # noqa: S310
                 # Handle redirects for Figshare
-                actual_url = response.geturl()
-                
+                actual_url = response.geturl()  # noqa: F841
+
                 # Get file size if available
                 file_size = response.headers.get("Content-Length")
                 if file_size:
@@ -77,13 +91,13 @@ def download_from_url(  # noqa: PLR0912
 
                 with dest_path.open("wb") as f:
                     with tqdm(
-                        total = file_size,
-                        unit = 'B',
-                        unit_scale = True,
-                        unit_divisor = 1024,
-                        desc = description,
-                        ncols = 80,
-                        disable = file_size is None
+                        total=file_size,
+                        unit="B",
+                        unit_scale=True,
+                        unit_divisor=1024,
+                        desc=description,
+                        ncols=80,
+                        disable=file_size is None,
                     ) as pbar:
                         downloaded = 0
                         while True:
@@ -101,18 +115,26 @@ def download_from_url(  # noqa: PLR0912
             # Verify the downloaded file
             if dest_path.exists():
                 final_size = dest_path.stat().st_size
-                logger.info(f"Successfully downloaded {description} ({final_size / (1024 * 1024):.1f} MB)")
-                
+                logger.info(
+                    f"Successfully downloaded {description} ({final_size / (1024 * 1024):.1f} MB)"
+                )
+
                 # Check if file seems valid (not an error page)
-                if final_size < 1024:  # Less than 1KB is suspicious for these data files
-                    logger.warning(f"Downloaded file is very small ({final_size} bytes), checking content")
+                if (
+                    final_size < 1024  # noqa: PLR2004
+                ):  # Less than 1KB is suspicious for these data files
+                    logger.warning(
+                        f"Downloaded file is very small ({final_size} bytes), checking content"
+                    )
                     with dest_path.open("rb") as f:
                         header = f.read(512)
                         if b"<!DOCTYPE html>" in header or b"<html" in header:
-                            logger.error("Downloaded HTML error page instead of data file")
+                            logger.error(
+                                "Downloaded HTML error page instead of data file"
+                            )
                             dest_path.unlink()  # Remove the bad file
                             return False
-                
+
                 return True
             else:
                 logger.error("Downloaded file does not exist")
@@ -143,6 +165,7 @@ def download_from_url(  # noqa: PLR0912
 
     return False
 
+
 def download_from_gdrive(
     file_url: str,
     dest_path: Path,
@@ -163,15 +186,25 @@ def download_from_gdrive(
         dest_path.parent.mkdir(parents=True, exist_ok=True)
 
         if not is_folder:
-            from functools import partial
-            tqdm_partial = partial(tqdm, ncols=80, unit='B', unit_scale=True, unit_divisor=1024)
-            
+            from functools import partial  # noqa: PLC0415
+
+            tqdm_partial = partial(
+                tqdm, ncols=80, unit="B", unit_scale=True, unit_divisor=1024
+            )
+
             result = gdown.download(
-                url=file_url, output=str(dest_path), quiet=False, fuzzy=True, resume=True
+                url=file_url,
+                output=str(dest_path),
+                quiet=False,
+                fuzzy=True,
+                resume=True,
             )
         else:
-            from functools import partial
-            tqdm_partial = partial(tqdm, ncols=80, unit='B', unit_scale=True, unit_divisor=1024)
+            from functools import partial  # noqa: PLC0415
+
+            tqdm_partial = partial(  # noqa: F841
+                tqdm, ncols=80, unit="B", unit_scale=True, unit_divisor=1024
+            )
             result = gdown.download_folder(
                 url=file_url, output=str(dest_path), quiet=False, use_cookies=False
             )
@@ -191,7 +224,9 @@ def download_from_gdrive(
                 header = f.read(512)
                 if b"<!DOCTYPE html>" in header or b"<html" in header:
                     dest_path.unlink()  # Remove the bad file
-                    raise RuntimeError("Downloaded HTML error page instead of data file")
+                    raise RuntimeError(
+                        "Downloaded HTML error page instead of data file"
+                    )
 
         logger.info(
             f"Successfully downloaded {dest_path.name} ({file_size / (1024 * 1024):.1f} MB)"

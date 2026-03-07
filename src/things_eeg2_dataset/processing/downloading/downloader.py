@@ -19,7 +19,7 @@ TOTAL_EXISTING_SUBJECTS = 10
 
 class DownloadSummary(TypedDict):
     total_subjects: int
-    subjects_to_download: list[int] 
+    subjects_to_download: list[int]
     subjects_existing: list[int]
     total_size_mb: int
 
@@ -121,7 +121,7 @@ class Downloader:
         invalid_subjects = [
             s for s in self.subjects if s < 1 or s > TOTAL_EXISTING_SUBJECTS
         ]
-        
+
         if invalid_subjects:
             raise ValueError(
                 f"Invalid subject IDs: {invalid_subjects}. "
@@ -229,7 +229,7 @@ class Downloader:
             if not zipfile.is_zipfile(zip_path):
                 logger.error(f"File is not a valid ZIP archive: {zip_path}")
                 raise zipfile.BadZipFile(f"Invalid ZIP: {zip_path.name}")
-            
+
             with zipfile.ZipFile(zip_path, "r") as zip_ref:
                 zip_ref.extractall(extract_dir)
 
@@ -254,14 +254,18 @@ class Downloader:
             True if download succeeded, False otherwise
         """
         # Check if training images already exist (only if directory exists)
-        if not self.overwrite and self.train_img_dir.exists() and any(self.train_img_dir.iterdir()):
+        if (
+            not self.overwrite
+            and self.train_img_dir.exists()
+            and any(self.train_img_dir.iterdir())
+        ):
             logger.info("Training images already exist, skipping download.")
             return True
-        
+
         if self.dry_run:
             logger.info("[DRY RUN] Would download image data from OSF.")
             return True
-        
+
         logger.info("Downloading image data from OSF...")
 
         osf = OSF()
@@ -276,12 +280,16 @@ class Downloader:
 
                 # Ensure parent directory exists
                 fpath.parent.mkdir(parents=True, exist_ok=True)
-                
+
                 with fpath.open("wb") as out:
                     f.write_to(out)
 
             # Verify required files were downloaded
-            required_files = ["test_images.zip", "training_images.zip", "image_metadata.npy"]
+            required_files = [
+                "test_images.zip",
+                "training_images.zip",
+                "image_metadata.npy",
+            ]
             for fname in required_files:
                 fpath = self.image_dir / fname
                 if not fpath.exists():
@@ -301,14 +309,14 @@ class Downloader:
             logger.error(f"Error downloading image data: {e}")
             return False
 
-    def download_subject(self, subject_id: int, url_dict: dict, raw_dir: Path) -> bool:
+    def download_subject(self, subject_id: int, url_dict: dict, raw_dir: Path) -> bool:  # noqa: PLR0912
         """Download raw data for a specific subject.
 
         Args:
             subject_id: Subject ID to download
             url_dict: Dictionary mapping subject IDs to download URLs
             raw_dir: Directory to store raw data
-        
+
         Returns:
             True if download succeeded, False otherwise
         """
@@ -353,26 +361,30 @@ class Downloader:
         if not zip_exists:
             url = url_dict[subject_id]
             zip_path = raw_dir / f"sub-{subject_id:02d}.zip"
-            
+
             # Choose appropriate download method based on URL type
             if "figshare.com" in url:
                 # Use urllib-based download for Figshare URLs
                 success = download_from_url(
-                    url=url, 
-                    dest_path=zip_path, 
+                    url=url,
+                    dest_path=zip_path,
                     description=f"subject {subject_id:02d} data",
                     dry_run=self.dry_run,
-                    max_retries=self.max_retries
+                    max_retries=self.max_retries,
                 )
                 if not success:
-                    logger.error(f"Failed to download subject {subject_id:02d} from Figshare")
+                    logger.error(
+                        f"Failed to download subject {subject_id:02d} from Figshare"
+                    )
                     return False
             else:
                 # Use gdown for Google Drive URLs
                 try:
                     download_from_gdrive(url, zip_path)
                 except Exception as e:
-                    logger.error(f"Failed to download subject {subject_id:02d} from Google Drive: {e}")
+                    logger.error(
+                        f"Failed to download subject {subject_id:02d} from Google Drive: {e}"
+                    )
                     return False
 
         # Extract the ZIP file after download (or if it already existed)
@@ -391,7 +403,7 @@ class Downloader:
         Returns:
             Dictionary mapping subject IDs to download success status
         """
-        logger.info(f"Starting download for {len(self.subjects)} subjects") 
+        logger.info(f"Starting download for {len(self.subjects)} subjects")
         results = {}
 
         for subject_id in self.subjects:
@@ -419,23 +431,25 @@ class Downloader:
         successful = sum(results.values())
         failed = len(results) - successful
 
-        logger.info(f"Raw data download complete: {successful} successful, {failed} failed")
+        logger.info(
+            f"Raw data download complete: {successful} successful, {failed} failed"
+        )
 
         if failed > 0:
             failed_subjects = [sid for sid, success in results.items() if not success]
             logger.warning(f"Failed subjects: {failed_subjects}")
 
         return results
-    
+
     def download_source_data(self) -> dict[int, bool]:
-        """"Download source data from Google Drive
+        """ "Download source data from Google Drive
 
         Returns:
             Dictionary mapping subject IDs to download success status
         """
         logger.info("Downloading source data from Google Drive...")
         results = {}
-        
+
         for subject_id in self.subjects:
             success = self.download_subject(
                 subject_id, self.SOURCE_DATA_GDRIVE_URLS, self.source_dir
@@ -450,7 +464,9 @@ class Downloader:
         successful = sum(results.values())
         failed = len(results) - successful
 
-        logger.info(f"Source data download complete: {successful} successful, {failed} failed")
+        logger.info(
+            f"Source data download complete: {successful} successful, {failed} failed"
+        )
 
         if failed > 0:
             failed_subjects = [sid for sid, success in results.items() if not success]
@@ -469,7 +485,9 @@ class Downloader:
         print("!" * 70)
         print("\nSome source data subjects failed to download from Google Drive.")
         print(f"Failed subjects: {failed_subjects}")
-        print("\nPlease download these subjects manually and place the extracted .zip files in the source data directory ./things_eeg2/source_data:")
+        print(
+            "\nPlease download these subjects manually and place the extracted .zip files in the source data directory ./things_eeg2/source_data:"
+        )
         print()
 
     def download_all(self) -> bool:
@@ -496,30 +514,40 @@ class Downloader:
         if not (raw_success and image_success):
             logger.error("✗ Initial download incomplete")
             if not raw_success:
-                failed_subjects = [sid for sid, success in raw_results.items() if not success]
+                failed_subjects = [
+                    sid for sid, success in raw_results.items() if not success
+                ]
                 logger.error(f"  Failed raw data subjects: {failed_subjects}")
             if not image_success:
                 logger.error("  Failed to download image data")
-            logger.error("Cannot proceed to source data download without raw data and images.")
+            logger.error(
+                "Cannot proceed to source data download without raw data and images."
+            )
             logger.info("=" * 70)
             return False
 
         logger.info("✓ Raw data and image data downloaded successfully")
         logger.info("=" * 70)
-        
+
         # Prompt user to continue with source data download
         if self.dry_run:
             logger.info("[DRY RUN] Would prompt user for source data download")
             logger.info("=" * 70)
             return True
-        
+
         # Interactive prompt for live mode
         print()
         while True:
-            user_input = input("Do you want to proceed with downloading the source data? (y/n): ").strip().lower()
-            if user_input in ['y', 'yes']:
+            user_input = (
+                input(
+                    "Do you want to proceed with downloading the source data? (y/n): "
+                )
+                .strip()
+                .lower()
+            )
+            if user_input in ["y", "yes"]:
                 break  # Continue to source data download
-            elif user_input in ['n', 'no']:
+            elif user_input in ["n", "no"]:
                 logger.info("Source data download skipped by user.")
                 logger.info("=" * 70)
                 return True  # Exit successfully without source data
@@ -530,17 +558,19 @@ class Downloader:
         logger.info("\n --- Downloading source data... ---")
         source_results = self.download_source_data()
         source_success = all(source_results.values())
-        
+
         # Print final status
         logger.info("\n" + "=" * 70)
         if source_success:
             logger.info("✓ All data downloaded successfully (raw + images + source)")
         else:
             # Some subjects failed - provide manual download instructions
-            failed_subjects = [sid for sid, success in source_results.items() if not success]
+            failed_subjects = [
+                sid for sid, success in source_results.items() if not success
+            ]
             logger.warning("✗ Source data download incomplete")
             self.print_manual_download_instructions(failed_subjects)
-        
+
         logger.info("=" * 70)
         return True
 

@@ -8,7 +8,7 @@ from things_eeg2_dataset.dataloader.dataset import ThingsEEGDataset
 from things_eeg2_dataset.paths import layout
 
 
-def test_dataset_runs_without_image_embeddings(tmp_path) -> None:
+def test_dataset_runs_without_image_embeddings(tmp_path) -> None:  # noqa: ANN001
     project_dir = tmp_path
     subject = 1
 

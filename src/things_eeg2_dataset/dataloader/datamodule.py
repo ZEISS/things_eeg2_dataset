@@ -87,7 +87,9 @@ def _split_by_units(
         raise ValueError("Validation split consumed all samples")
 
     rng = np.random.default_rng(seed)
-    train_eval_size = int(min(max(1, min(retrieval_set_size, val_idx.size)), train_pool.size))
+    train_eval_size = int(
+        min(max(1, min(retrieval_set_size, val_idx.size)), train_pool.size)
+    )
     train_eval_idx = rng.choice(train_pool, size=train_eval_size, replace=False)
 
     train_mask = ~np.isin(train_pool, train_eval_idx)
@@ -105,7 +107,9 @@ class ThingsEEGDataModule(L.LightningDataModule):
         self.test_dataset: ThingsEEGDataset | None = None
         self.train_eval_dataset: Subset[Any] | None = None
         self.artifacts: DataArtifacts | None = None
-        self.val_batch_size = min(self.cfg.retrieval_set_size, max(self.cfg.batch_size, 1))
+        self.val_batch_size = min(
+            self.cfg.retrieval_set_size, max(self.cfg.batch_size, 1)
+        )
 
     def setup(self, stage: str | None = None) -> None:
         ds_common = dict(
@@ -124,10 +128,10 @@ class ThingsEEGDataModule(L.LightningDataModule):
         )
 
         full_train = ThingsEEGDataset(
-            DatasetConfig(**ds_common, partition=Partition.TRAINING)
+            DatasetConfig(**ds_common, partition=Partition.TRAINING)  # type: ignore[arg-type]
         )
         self.test_dataset = ThingsEEGDataset(
-            DatasetConfig(**ds_common, partition=Partition.TEST)
+            DatasetConfig(**ds_common, partition=Partition.TEST)  # type: ignore[arg-type]
         )
 
         n = len(full_train)
@@ -136,7 +140,9 @@ class ThingsEEGDataModule(L.LightningDataModule):
             val_size = (
                 int(self.cfg.val_units)
                 if self.cfg.val_units is not None
-                else min(self.cfg.retrieval_set_size, max(1, int(n * self.cfg.val_fraction)))
+                else min(
+                    self.cfg.retrieval_set_size, max(1, int(n * self.cfg.val_fraction))
+                )
             )
             train_eval_size = min(self.cfg.retrieval_set_size, max(1, int(val_size)))
             train_idx, val_idx, train_eval_idx = _split_indices(
