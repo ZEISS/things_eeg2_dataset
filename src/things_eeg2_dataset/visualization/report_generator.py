@@ -5,7 +5,7 @@ Generates detailed execution reports for the processing pipeline
 
 import json
 import platform
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
@@ -40,7 +40,7 @@ class StageReport:
     requested_subjects: list[int] | None = None
     downloaded_subjects: list[int] | None = None
     source_data_downloaded: bool | None = None
-    missing_files: list[str] = field(default_factory=list)  # type: ignore  # noqa: F821, RUF009
+    missing_files: list[str] = field(default_factory=list)  # type: ignore
     total_download_size: float | None = None  # in GB
 
     # Fields for the preprocessing step
@@ -77,7 +77,7 @@ class StageReport:
     validation_checks_passed: int | None = None  # Number of validation checks passed
     validation_checks_failed: int | None = None  # Number of validation checks failed
     validation_warnings: int | None = None  # Number of validation warnings
-    validation_issues: list[dict[str, Any]] = field(  # type: ignore  # noqa: F821, RUF009
+    validation_issues: list[dict[str, Any]] = field(  # type: ignore
         default_factory=list
     )  # List of validation issues
 
