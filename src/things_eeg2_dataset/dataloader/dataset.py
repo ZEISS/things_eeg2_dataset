@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, NamedTuple
-
-import logging
 
 import mne
 import numpy as np
@@ -19,7 +18,6 @@ from things_eeg2_dataset.dataloader.config import DatasetConfig
 from things_eeg2_dataset.dataloader.sample_info import get_info_for_sample
 from things_eeg2_dataset.paths import layout
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -31,6 +29,7 @@ class LoadedEmbeddingBank:
 
 class ThingsEEGItem(NamedTuple):
     """Data item returned by `ThingsEEGDataset.__getitem__`."""
+
     brain_signal: torch.Tensor
     image_embedding: torch.Tensor
     subject: torch.Tensor
@@ -43,7 +42,9 @@ class ThingsEEGItem(NamedTuple):
     image: str | torch.Tensor
 
 
-def _compute_channel_positions(ch_names: list[str], montage: str = "standard_1020") -> torch.Tensor:
+def _compute_channel_positions(
+    ch_names: list[str], montage: str = "standard_1020"
+) -> torch.Tensor:
     """Compute normalized 2D sensor positions for the given channel names.
 
     Arguments:
@@ -54,7 +55,7 @@ def _compute_channel_positions(ch_names: list[str], montage: str = "standard_102
     """
 
     montage = mne.channels.make_standard_montage(montage)
-    ch_pos = montage.get_positions()["ch_pos"]
+    ch_pos = montage.get_positions()["ch_pos"]  # type: ignore
 
     missing = [c for c in ch_names if c not in ch_pos]
     if missing:
@@ -63,7 +64,9 @@ def _compute_channel_positions(ch_names: list[str], montage: str = "standard_102
             f"Missing: {missing}"
         )
 
-    xy = np.stack([np.asarray(ch_pos[c], dtype=np.float32)[:2] for c in ch_names], axis=0)
+    xy = np.stack(
+        [np.asarray(ch_pos[c], dtype=np.float32)[:2] for c in ch_names], axis=0
+    )
     mins = xy.min(axis=0)
     maxs = xy.max(axis=0)
     denom = np.maximum(maxs - mins, 1e-8)
@@ -93,7 +96,7 @@ class ThingsEEGDataset(Dataset):
     TRAIN_SAMPLES_PER_CLASS: int = 10
     TEST_SAMPLES_PER_CLASS: int = 1
 
-    def __init__(self, config: DatasetConfig | None = None, **overrides: Any) -> None:
+    def __init__(self, config: DatasetConfig | None = None, **overrides: Any) -> None:  # noqa: ANN401, PLR0912, PLR0915
         cfg = config or DatasetConfig()
         if overrides:
             cfg = DatasetConfig(**{**cfg.__dict__, **overrides})
@@ -101,7 +104,9 @@ class ThingsEEGDataset(Dataset):
 
         self.project_dir = cfg.project_dir
         self.subjects = list(cfg.subjects)
-        self.partition: Partition = cfg.partition  # normalized in config
+        self.partition: Partition = (
+            cfg.partition  # type: ignore
+        )  # normalized in config  # type: ignore
         self.load_images = cfg.load_images
 
         if not self.subjects:
@@ -260,8 +265,7 @@ class ThingsEEGDataset(Dataset):
         # Optional normalization (stats generation is not guaranteed)
         if self.cfg.normalize_embed and self.cfg.embed_stats_dir is not None:
             stats_path = (
-                Path(self.cfg.embed_stats_dir)
-                / f"{emb_file.stem}_stats.safetensors"
+                Path(self.cfg.embed_stats_dir) / f"{emb_file.stem}_stats.safetensors"
             )
             if stats_path.exists():
                 stats = load_file(stats_path)

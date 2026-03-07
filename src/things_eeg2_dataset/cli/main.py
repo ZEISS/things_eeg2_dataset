@@ -1,26 +1,18 @@
 import logging
-from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Annotated, List
+from typing import Annotated
 
 import typer
-from typer import BadParameter
-
 from rich import print as rprint
 from rich.prompt import Prompt
 from rich.table import Table
+from typer import BadParameter
 
 from things_eeg2_dataset import __version__
 from things_eeg2_dataset.cli.logger import setup_logging
 from things_eeg2_dataset.verification.dependency_ver import (
-    verify_dependencies,
     auto_verify_and_install_dependencies,
-)
-from things_eeg2_dataset.visualization.report_generator import (
-    ReportGenerator,
-    StageReport,
-    StageStatus,
 )
 
 logger = logging.getLogger(__name__)
@@ -35,8 +27,10 @@ DEFAULT_SUBJECTS = list(range(1, 11))
 DEFAULT_MODELS: list[str] = []
 DEFAULT_PROJECT_DIR = Path.home() / "things_eeg2"
 
+
 class EmbeddingModel(Enum):
     """Available embedding models for the THINGS-EEG2 dataset."""
+
     OPEN_CLIP_VIT_H_14 = "open_clip_vit_h_14"
     OPENAI_CLIP_VIT_L_14 = "openai_clip_vit_l_14"
     DINO_V2 = "dino_v2"
@@ -44,12 +38,15 @@ class EmbeddingModel(Enum):
     SIGLIP = "siglip"
     SIGLIP2 = "siglip2"
 
+
 class Partition(Enum):
     """Dataset partitions."""
+
     TRAINING = "training"
     TEST = "test"
 
-def parse_models(models: List[str] | None) -> List[EmbeddingModel] | None:
+
+def parse_models(models: list[str] | None) -> list[EmbeddingModel] | None:
     """
     Implement the list of models to generate embeddings for.
 
@@ -83,10 +80,12 @@ def parse_models(models: List[str] | None) -> List[EmbeddingModel] | None:
 
     return parsed_models
 
+
 def version_callback(value: bool) -> None:
     if value:
         rprint(f"{__package__.split('.')[0]} version: [cyan]{__version__}[/cyan]")
         raise typer.Exit()
+
 
 @app.callback()
 def main(
@@ -108,6 +107,7 @@ def main(
 ) -> None:
     setup_logging(verbosity=verbose)
 
+
 @app.command(name="pipeline")
 def pipeline(  # noqa: PLR0913
     project_dir: Path = typer.Option(
@@ -116,7 +116,7 @@ def pipeline(  # noqa: PLR0913
     subjects: list[int] = typer.Option(
         DEFAULT_SUBJECTS, "--subjects", help="List of subject numbers to process."
     ),
-    models: list[str] = typer.Option(
+    models: list[EmbeddingModel] | None = typer.Option(
         None,
         "--models",
         help="List of models to use for embedding generation. Use 'all' to select all models.",
@@ -133,12 +133,16 @@ def pipeline(  # noqa: PLR0913
     skip_download: bool = typer.Option(False, "--skip-download"),
     skip_preprocessing: bool = typer.Option(False, "--skip-preprocessing"),
     skip_embeddings: bool = typer.Option(False, "--skip-embeddings"),
-    interactive: bool = typer.Option(True, "--interactive/--no-interactive", help="Enable interactive model selection for embedding generation."),
+    interactive: bool = typer.Option(
+        True,
+        "--interactive/--no-interactive",
+        help="Enable interactive model selection for embedding generation.",
+    ),
 ) -> None:
     """
     Run the full THINGS-EEG2 raw processing pipeline.
     """
-    
+
     # Auto-verify and install dependencies
     if not auto_verify_and_install_dependencies():
         logger.error("Failed to verify/install required dependencies.")
@@ -150,7 +154,7 @@ def pipeline(  # noqa: PLR0913
 
     if not skip_embeddings and models is None and interactive:
         models = None
-    
+
     elif not skip_embeddings and models is None:
         models = [
             EmbeddingModel.OPEN_CLIP_VIT_H_14,
@@ -169,7 +173,7 @@ def pipeline(  # noqa: PLR0913
     pipeline = _init_pipeline(
         project_dir=project_dir,
         subjects=subjects,
-        models=models,
+        models=models,  # type: ignore[arg-type]
         sfreq=sfreq,
         device=device,
         overwrite=overwrite,
@@ -182,6 +186,7 @@ def pipeline(  # noqa: PLR0913
     )
     pipeline.run()
     raise typer.Exit(code=0)
+
 
 @app.command(name="download")
 def download(
@@ -196,13 +201,15 @@ def download(
     ),
     dry_run: bool = typer.Option(False, "--dry-run", help="Don't write data to disk."),
     generate_report: bool = typer.Option(
-        True, "--generate-report/--no-generate-report", help="Generate a summary report."
+        True,
+        "--generate-report/--no-generate-report",
+        help="Generate a summary report.",
     ),
 ) -> None:
     """
     Download the THINGS-EEG2 raw dataset.
     """
-    
+
     # Auto-verify and install dependencies
     if not auto_verify_and_install_dependencies():
         logger.error("Failed to verify/install required dependencies.")
@@ -219,23 +226,23 @@ def download(
         overwrite=overwrite,
         dry_run=dry_run,
         skip_download=False,
-        skip_preprocessing=True,  
-        skip_embeddings=True,  
+        skip_preprocessing=True,
+        skip_embeddings=True,
     )
 
     overall_status = "completed"
-    
+
     try:
         # Perform the download (this populates the stage report internally)
         pipeline.step_download_data()
-        
+
         rprint("[bold cyan]✓[/bold cyan] Download completed successfully.")
 
     except Exception as e:
         logger.error(f"Download failed: {e}")
         overall_status = "failed"
-        raise typer.Exit(code=1)
-    
+        raise typer.Exit(code=1)  # noqa: B904
+
     finally:
         # Generate final report if requested
         if generate_report:
@@ -243,15 +250,18 @@ def download(
             if pipeline.report_generator.report.stages:
                 last_stage = pipeline.report_generator.report.stages[-1]
                 if last_stage.downloaded_subjects:
-                    pipeline.report_generator.set_subjects_processed(len(last_stage.downloaded_subjects))
+                    pipeline.report_generator.set_subjects_processed(
+                        len(last_stage.downloaded_subjects)
+                    )
                 else:
                     pipeline.report_generator.set_subjects_processed(0)
-            
+
             pipeline.report_generator.finalize(overall_status=overall_status)
             report_path = pipeline.report_generator.save_text_report()
             json_path = pipeline.report_generator.save_json_report()
             rprint(f"[bold cyan]✓[/bold cyan] Report saved to: {report_path}")
             rprint(f"[bold cyan]✓[/bold cyan] JSON report saved to: {json_path}")
+
 
 @app.command(name="info")
 def info(
@@ -282,7 +292,7 @@ def info(
         subject=subject,
         session=session,
         data_idx=data_index,
-        partition=partition,
+        partition=partition.value,
     )
 
     rprint(info)
@@ -332,7 +342,7 @@ def preprocess(  # noqa: PLR0913
     """
     Preprocess the THINGS-EEG2 raw dataset.
     """
-    
+
     # Auto-verify and install dependencies
     if not auto_verify_and_install_dependencies():
         logger.error("Failed to verify/install required dependencies.")
@@ -370,12 +380,13 @@ def preprocess(  # noqa: PLR0913
     pipeline.step_process_eeg()
     pipeline.run_single_step("EEG Preprocessing")
 
+
 @app.command(name="embed")
-def embed(
+def embed(  # noqa: PLR0913
     project_dir: Path = typer.Option(
         DEFAULT_PROJECT_DIR, "--project-dir", help="Path to project."
     ),
-    models: list[str] = typer.Option(
+    models: list[EmbeddingModel] | None = typer.Option(
         None,
         "--models",
         help="List of models to generate embeddings for.",
@@ -388,18 +399,26 @@ def embed(
         False, "--overwrite", help="Overwrite existing embeddings."
     ),
     dry_run: bool = typer.Option(False, "--dry-run", help="Don't write data to disk."),
-    interactive: bool = typer.Option(True, "--interactive/--no-interactive", help="Enable interactive model selection for embedding generation."),
-    sequential: bool = typer.Option(True, "--sequential/--parallel", help="Run embedding generation sequentially to reduce memory usage."),
+    interactive: bool = typer.Option(
+        True,
+        "--interactive/--no-interactive",
+        help="Enable interactive model selection for embedding generation.",
+    ),
+    sequential: bool = typer.Option(
+        True,
+        "--sequential/--parallel",
+        help="Run embedding generation sequentially to reduce memory usage.",
+    ),
 ) -> None:
     """
     Generate model embeddings for the THINGS-EEG2 dataset.
     """
-    
+
     # Auto-verify and install dependencies
     if not auto_verify_and_install_dependencies():
         logger.error("Failed to verify/install required dependencies.")
         raise typer.Exit(code=1)
-    
+
     from things_eeg2_dataset.processing.pipeline import (  # noqa: PLC0415
         _init_pipeline,
     )
@@ -420,12 +439,12 @@ def embed(
 
     pipeline = _init_pipeline(
         project_dir=project_dir,
-        subjects=[],  
-        models=models,
+        subjects=[],
+        models=models,  # type: ignore[arg-type]
         device=device,
         overwrite=overwrite,
         dry_run=dry_run,
-        skip_download=True, 
+        skip_download=True,
         skip_preprocessing=True,
         skip_embeddings=False,
         interactive=interactive,
@@ -433,6 +452,7 @@ def embed(
     )
     pipeline.step_generate_embeddings()
     pipeline.run_single_step("Embedding Generation")
+
 
 def interactive_model_selection() -> list[EmbeddingModel]:
     """
@@ -456,31 +476,40 @@ def interactive_model_selection() -> list[EmbeddingModel]:
         table.add_row(str(idx), model.name, model.value)
 
     rprint(table)
-    rprint("\n[bold cyan]Please select the desired model for embedding generation...[/bold cyan]")
-    rprint("[dim]Enter model number(s) separated by spaces or 'all' for all models.[/dim]\n")
+    rprint(
+        "\n[bold cyan]Please select the desired model for embedding generation...[/bold cyan]"
+    )
+    rprint(
+        "[dim]Enter model number(s) separated by spaces or 'all' for all models.[/dim]\n"
+    )
 
     while True:
         selection = Prompt.ask("[bold cyan]Your selection[/bold cyan]")
 
         if selection.lower() == "all":
             return available_models
-        
+
         try:
             indices = [int(x.strip()) for x in selection.split()]
 
             if all(1 <= idx <= len(available_models) for idx in indices):
                 selected_models = [available_models[idx - 1] for idx in indices]
-            
-                rprint(f"\n[bold cyan]✓[/bold cyan] Selected models:")
+
+                rprint("\n[bold cyan]✓[/bold cyan] Selected models:")
                 for model in selected_models:
                     rprint(f" • {model.value}")
 
                 return selected_models
             else:
-                rprint(f"[bold cyan]Error[/bold cyan]: Invalid selection. Please enter valid model numbers or 'all'.\n")
+                rprint(
+                    "[bold cyan]Error[/bold cyan]: Invalid selection. Please enter valid model numbers or 'all'.\n"
+                )
 
         except ValueError:
-            rprint(f"[bold cyan]Error[/bold cyan]: Invalid input. Please enter numbers separated by spaces or 'all'.\n")
+            rprint(
+                "[bold cyan]Error[/bold cyan]: Invalid input. Please enter numbers separated by spaces or 'all'.\n"
+            )
+
 
 @app.command(name="view-profile")
 def view_profile(
@@ -507,6 +536,7 @@ def view_profile(
         port=port,
     )
 
+
 @app.command(name="validate", hidden=True)
 def validate(
     project_dir: Path = typer.Option(
@@ -521,21 +551,25 @@ def validate(
         help="Validation stage: 'raw' for downloaded data, 'processed' for preprocessed data, 'both' for both stages.",
     ),
     sfreq: int = typer.Option(
-        250, "--sfreq", help="Sampling frequency (needed for processed data validation)."
+        250,
+        "--sfreq",
+        help="Sampling frequency (needed for processed data validation).",
     ),
 ) -> None:
     """
     Validate data integrity without running the full pipeline.
-    
+
     Checks for file existence, correct shapes, NaN/inf values, and other data quality issues.
     """
     from things_eeg2_dataset.verification.data_validation import (  # noqa: PLC0415
-        validate_raw_data,
         validate_processed_data,
+        validate_raw_data,
     )
 
     if stage.lower() not in ["raw", "processed", "both"]:
-        rprint("[bold red]Error:[/bold red] Invalid stage. Must be 'raw', 'processed', or 'both'.")
+        rprint(
+            "[bold red]Error:[/bold red] Invalid stage. Must be 'raw', 'processed', or 'both'."
+        )
         raise typer.Exit(code=1)
 
     all_passed = True
@@ -547,7 +581,7 @@ def validate(
             project_dir=project_dir,
             subjects=subjects,
         )
-        
+
         if raw_report.has_failures:
             all_passed = False
 
@@ -559,7 +593,7 @@ def validate(
             subjects=subjects,
             sfreq=sfreq,
         )
-        
+
         if processed_report.has_failures:
             all_passed = False
 
@@ -574,4 +608,3 @@ def validate(
 
 if __name__ == "__main__":
     app()
-

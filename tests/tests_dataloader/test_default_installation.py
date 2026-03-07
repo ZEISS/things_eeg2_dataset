@@ -38,7 +38,9 @@ def _default_install_available(subject: int = 1) -> bool:
 
 def _skip_if_missing() -> None:
     if not _default_install_available(subject=1):
-        pytest.skip("Default dataset install not found at ~/things_eeg2; skipping integration test")
+        pytest.skip(
+            "Default dataset install not found at ~/things_eeg2; skipping integration test"
+        )
 
 
 def test_default_install_dataset_poststim_window_loads() -> None:

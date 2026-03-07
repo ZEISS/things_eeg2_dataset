@@ -25,7 +25,7 @@ class TestThingsEEGDataset:
         assert ThingsEEGDataset.TRAIN_CLASSES == 1654
         assert ThingsEEGDataset.TEST_CLASSES == 200
 
-    def test_dataset_returns_things_eeg_item(self, tmp_path) -> None:
+    def test_dataset_returns_things_eeg_item(self, tmp_path) -> None:  # noqa: ANN001
         """Minimal on-disk fixture to ensure __getitem__ returns ThingsEEGItem."""
         project_dir = tmp_path
 

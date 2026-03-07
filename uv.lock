@@ -3604,7 +3604,7 @@ wheels = [
 
 [[package]]
 name = "things-eeg2-dataset"
-version = "0.0.3"
+version = "0.0.5"
 source = { editable = "." }
 dependencies = [
     { name = "accelerate" },

@@ -19,7 +19,10 @@ def apply_braindecode_preprocessing(
     """
 
     try:
-        from braindecode.preprocessing import Preprocessor, preprocess  # type: ignore
+        from braindecode.preprocessing import (  # type: ignore  # noqa: PLC0415
+            Preprocessor,
+            preprocess,
+        )
     except Exception as e:  # pragma: no cover
         raise ImportError(
             "Braindecode backend requested but `braindecode` is not installed. "
