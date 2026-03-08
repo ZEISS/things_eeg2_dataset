@@ -21,7 +21,7 @@ dependencies = [
     "streamlit>=1.52.1",
     "torch>=2.5.0",
     "torchvision>=0.24.1",
-    "transformers>=4.41.0,<4.52.0",
+    "transformers>=4.41.0,<4.54.0",
     "typer>=0.20.0,<0.25.0",
     "tqdm",
     "psutil>=5.9.0",
