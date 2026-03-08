@@ -11,8 +11,8 @@ from packaging.specifiers import SpecifierSet
 from packaging.version import Version
 
 CRITICAL_DEPENDENCIES = {
-    "transformers": ">=4.51.0,<4.52.0",
-    "diffusers": ">=0.32.0,<0.37.0",
+    "transformers": ">=4.56.2,<6.0.0",
+    "diffusers": ">=0.37.0,<0.38.0",
     "torch": ">=2.0.0",
     "torchvision": ">=0.24.1",
     "mne": ">=1.11.0",
