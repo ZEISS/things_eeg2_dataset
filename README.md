@@ -164,7 +164,3 @@ See `things_eeg2_dataloader/README.md` for detailed usage.
 We are happy users of the [THINGS-EEG2 dataset](https://things-initiative.org/), but not associated with the original authors.
 If you use this code, please cite the [THINGS-EEG2 paper](https://www.sciencedirect.com/science/article/pii/S1053811922008758?via%3Dihub):
 > Gifford, A. T., Lahner, B., Saba-Sadiya, S., Vilas, M. G., Lascelles, A., Oliva, A., ... & Cichy, R. M. (2022). The THINGS-EEG2 dataset. Scientific Data.
-
-## License
-
-This project follows the original THINGS-EEG2 license terms.

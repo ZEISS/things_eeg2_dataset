@@ -26,7 +26,7 @@ def save_prepr(  # noqa: PLR0913
     save_path.mkdir(parents=True, exist_ok=True)
 
     # Shape: (Number of sessions x Image conditions x EEG repetitions x EEG channels x EEG time points)
-    # For all channels, this should be (4, 8270, 2, 64, 251) for the training data and (4, 200, 20, 64, 251) for the testing data
+    # For all channels, this should be (4, 8270, 2, 64, 301) for the training data and (4, 200, 20, 64, 301) for the testing data
     test_eeg_data = np.array(whitened_test)
     np.save(layout.get_eeg_test_file(project_dir, subject), test_eeg_data)
 

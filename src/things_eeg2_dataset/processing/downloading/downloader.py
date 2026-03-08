@@ -10,7 +10,7 @@ from osfclient import OSF
 
 from things_eeg2_dataset.paths import layout
 
-from .download_utils import download_from_gdrive
+from .download_utils import download_from_gdrive, download_from_url
 
 logger = logging.getLogger(__name__)
 
@@ -19,16 +19,15 @@ TOTAL_EXISTING_SUBJECTS = 10
 
 class DownloadSummary(TypedDict):
     total_subjects: int
-    subjects_to_download: list[int]  # Assuming subject_id is int
+    subjects_to_download: list[int]
     subjects_existing: list[int]
-    total_size_mb: int  # or float
+    total_size_mb: int
 
 
 class Downloader:
     """Download and manage THINGS-EEG2 raw data files.
 
-    This class handles downloading raw EEG data from OpenNeuro,
-    extracting ZIP archives, and validating data structure.
+    This class handles downloading raw EEG data and image stimuli
 
     Attributes:
         data_path: Path to store downloaded data
@@ -82,9 +81,7 @@ class Downloader:
     }
 
     OSF_THINGS_EEG2_PROJECT_ID: str = "Y63gw"
-    # Expected file sizes (approximate, in bytes)
     SUBJECT_SIZE_MB = 10240  # ~10GB per subject
-    METADATA_SIZE_KB = 100  # ~100KB for metadata
 
     def __init__(  # noqa: PLR0913
         self,
@@ -124,10 +121,11 @@ class Downloader:
         invalid_subjects = [
             s for s in self.subjects if s < 1 or s > TOTAL_EXISTING_SUBJECTS
         ]
+
         if invalid_subjects:
             raise ValueError(
                 f"Invalid subject IDs: {invalid_subjects}. "
-                "Subject IDs must be between 1 and 10."
+                f"Subject IDs must be between 1 and {TOTAL_EXISTING_SUBJECTS}."
             )
 
         # Create data directory if it doesn't exist
@@ -149,6 +147,7 @@ class Downloader:
 
         Args:
             subject_id: Subject ID to check
+            source_dir: Directory where subject data is stored
 
         Returns:
             Tuple of (zip_exists, extracted_exists, valid_structure)
@@ -212,14 +211,24 @@ class Downloader:
     def _extract_zip(
         self, zip_path: Path, extract_dir: Path, keep_zip: bool = False
     ) -> None:
+        """Extract a ZIP file to the specified directory.
+
+        Args:
+            zip_path: Path to the ZIP file
+            extract_dir: Directory to extract contents into
+            keep_zip: If True, keep the ZIP file after extraction
+        """
+
         if self.dry_run:
             logger.info(f"[DRY RUN] Would extract {zip_path}")
+            return
 
         try:
             logger.info(f"Extracting {zip_path.name}...")
 
             if not zipfile.is_zipfile(zip_path):
                 logger.error(f"File is not a valid ZIP archive: {zip_path}")
+                raise zipfile.BadZipFile(f"Invalid ZIP: {zip_path.name}")
 
             with zipfile.ZipFile(zip_path, "r") as zip_ref:
                 zip_ref.extractall(extract_dir)
@@ -244,42 +253,75 @@ class Downloader:
         Returns:
             True if download succeeded, False otherwise
         """
-
-        if not self.overwrite and any(self.train_img_dir.iterdir()):
+        # Check if training images already exist (only if directory exists)
+        if (
+            not self.overwrite
+            and self.train_img_dir.exists()
+            and any(self.train_img_dir.iterdir())
+        ):
             logger.info("Training images already exist, skipping download.")
             return True
+
+        if self.dry_run:
+            logger.info("[DRY RUN] Would download image data from OSF.")
+            return True
+
+        logger.info("Downloading image data from OSF...")
 
         osf = OSF()
         project = osf.project(self.OSF_THINGS_EEG2_PROJECT_ID)
         storage = project.storage("osfstorage")
 
         try:
+            # Download all files from OSF (including image_metadata.npy)
             for f in storage.files:
                 fpath = self.image_dir / str(f.path).lstrip("/")
-                logger.info(f"Processing image file: {fpath}")
+                logger.info(f"Downloading: {fpath.name}")
 
-                if not self.dry_run:
-                    # Ensure parent directory exists
-                    fpath.parent.mkdir(parents=True, exist_ok=True)
-                    with fpath.open("wb") as out:
-                        f.write_to(out)
+                # Ensure parent directory exists
+                fpath.parent.mkdir(parents=True, exist_ok=True)
+
+                with fpath.open("wb") as out:
+                    f.write_to(out)
+
+            # Verify required files were downloaded
+            required_files = [
+                "test_images.zip",
+                "training_images.zip",
+                "image_metadata.npy",
+            ]
+            for fname in required_files:
+                fpath = self.image_dir / fname
+                if not fpath.exists():
+                    logger.error(f"Required file not found: {fname}")
+                    return False
+
+            # Extract image ZIP files
+            logger.info("Extracting image archives...")
+            for zip_fname in ["test_images.zip", "training_images.zip"]:
+                zip_path = self.image_dir / zip_fname
+                self._extract_zip(zip_path, self.image_dir, keep_zip=False)
+
+            logger.info("Image data downloaded successfully")
+            return True
 
         except Exception as e:
             logger.error(f"Error downloading image data: {e}")
             return False
 
-        zip_files = ["test_images.zip", "training_images.zip"]
-        for zip_fname in zip_files:
-            zip_path = self.image_dir / zip_fname
+    def download_subject(self, subject_id: int, url_dict: dict, raw_dir: Path) -> bool:  # noqa: PLR0912
+        """Download raw data for a specific subject.
 
-            if not zip_path.exists():
-                logger.error(f"Image ZIP file not found: {zip_path}")
-                return False
+        Args:
+            subject_id: Subject ID to download
+            url_dict: Dictionary mapping subject IDs to download URLs
+            raw_dir: Directory to store raw data
 
-        return True
-
-    def download_subject(self, subject_id: int, url_dict: dict, raw_dir: Path) -> bool:
+        Returns:
+            True if download succeeded, False otherwise
+        """
         logger.info(f"Starting download for subject {subject_id:02d}")
+
         zip_exists, extracted_exists, valid_structure = self._check_if_exists(
             subject_id, raw_dir
         )
@@ -319,28 +361,79 @@ class Downloader:
         if not zip_exists:
             url = url_dict[subject_id]
             zip_path = raw_dir / f"sub-{subject_id:02d}.zip"
-            download_from_gdrive(url, zip_path)
+
+            # Choose appropriate download method based on URL type
+            if "figshare.com" in url:
+                # Use urllib-based download for Figshare URLs
+                success = download_from_url(
+                    url=url,
+                    dest_path=zip_path,
+                    description=f"subject {subject_id:02d} data",
+                    dry_run=self.dry_run,
+                    max_retries=self.max_retries,
+                )
+                if not success:
+                    logger.error(
+                        f"Failed to download subject {subject_id:02d} from Figshare"
+                    )
+                    return False
+            else:
+                # Use gdown for Google Drive URLs
+                try:
+                    download_from_gdrive(url, zip_path)
+                except Exception as e:
+                    logger.error(
+                        f"Failed to download subject {subject_id:02d} from Google Drive: {e}"
+                    )
+                    return False
+
+        # Extract the ZIP file after download (or if it already existed)
+        zip_path = raw_dir / f"sub-{subject_id:02d}.zip"
+        if zip_path.exists() and not self.dry_run:
+            subject_dir = raw_dir / f"sub-{subject_id:02d}"
+            if not subject_dir.exists() or self.overwrite:
+                self._extract_zip(zip_path, raw_dir, keep_zip=False)
+
         logger.info(f"Successfully processed subject {subject_id:02d}")
         return True
 
     def download_raw_data(self) -> dict[int, bool]:
+        """Download raw EEG data for all specified subjects.
+
+        Returns:
+            Dictionary mapping subject IDs to download success status
+        """
+        logger.info(f"Starting download for {len(self.subjects)} subjects")
         results = {}
 
         for subject_id in self.subjects:
+            # Try Figshare first
             success = self.download_subject(
-                subject_id, self.RAW_DATA_GDRIVE_URLS, self.raw_dir
+                subject_id, self.RAW_DATA_FIGSHARE_URLS, self.raw_dir
             )
+
+            # If not successful, try Google Drive
+            if not success:
+                logger.warning(
+                    f"Figshare download failed for subject {subject_id:02d}, trying Google Drive"
+                )
+                success = self.download_subject(
+                    subject_id, self.RAW_DATA_GDRIVE_URLS, self.raw_dir
+                )
+
             results[subject_id] = success
 
             if not success:
                 logger.warning(
-                    f"Subject {subject_id:02d} failed, continuing with next subject"
+                    f"Subject {subject_id:02d} failed from both sources, continuing with next subject"
                 )
 
         successful = sum(results.values())
         failed = len(results) - successful
 
-        logger.info(f"Download complete: {successful} successful, {failed} failed")
+        logger.info(
+            f"Raw data download complete: {successful} successful, {failed} failed"
+        )
 
         if failed > 0:
             failed_subjects = [sid for sid, success in results.items() if not success]
@@ -349,8 +442,12 @@ class Downloader:
         return results
 
     def download_source_data(self) -> dict[int, bool]:
-        logger.info(f"Starting download for {len(self.subjects)} subjects")
+        """ "Download source data from Google Drive
 
+        Returns:
+            Dictionary mapping subject IDs to download success status
+        """
+        logger.info("Downloading source data from Google Drive...")
         results = {}
 
         for subject_id in self.subjects:
@@ -361,13 +458,15 @@ class Downloader:
 
             if not success:
                 logger.warning(
-                    f"Subject {subject_id:02d} failed, continuing with next subject"
+                    f"Source data download failed for subject {subject_id:02d}"
                 )
 
         successful = sum(results.values())
         failed = len(results) - successful
 
-        logger.info(f"Download complete: {successful} successful, {failed} failed")
+        logger.info(
+            f"Source data download complete: {successful} successful, {failed} failed"
+        )
 
         if failed > 0:
             failed_subjects = [sid for sid, success in results.items() if not success]
@@ -375,13 +474,114 @@ class Downloader:
 
         return results
 
+    def print_manual_download_instructions(self, failed_subjects: list[int]) -> None:
+        """Print manual instructions for failed subjects
+
+        Args:
+            failed_subjects: List of subject IDs that failed to download
+        """
+        print("\n" + "!" * 70)
+        print("MANUAL DOWNLOAD REQUIRED")
+        print("!" * 70)
+        print("\nSome source data subjects failed to download from Google Drive.")
+        print(f"Failed subjects: {failed_subjects}")
+        print(
+            "\nPlease download these subjects manually and place the extracted .zip files in the source data directory ./things_eeg2/source_data:"
+        )
+        print()
+
+    def download_all(self) -> bool:
+        """Download all data: raw EEG and images, then optionally source data.
+
+        Returns:
+            True if all requested downloads succeeded, False if raw/image downloads failed
+        """
+        logger.info("=" * 70)
+        logger.info("Starting full THINGS-EEG2 data download")
+        logger.info("=" * 70)
+
+        # Download raw EEG data
+        logger.info("\n --- Downloading raw EEG data... ---")
+        raw_results = self.download_raw_data()
+        raw_success = all(raw_results.values())
+
+        # Download image data
+        logger.info("\n --- Downloading image data... ---")
+        image_success = self.download_images()
+
+        # Check if initial downloads (raw + images) succeeded
+        logger.info("\n" + "=" * 70)
+        if not (raw_success and image_success):
+            logger.error("✗ Initial download incomplete")
+            if not raw_success:
+                failed_subjects = [
+                    sid for sid, success in raw_results.items() if not success
+                ]
+                logger.error(f"  Failed raw data subjects: {failed_subjects}")
+            if not image_success:
+                logger.error("  Failed to download image data")
+            logger.error(
+                "Cannot proceed to source data download without raw data and images."
+            )
+            logger.info("=" * 70)
+            return False
+
+        logger.info("✓ Raw data and image data downloaded successfully")
+        logger.info("=" * 70)
+
+        # Prompt user to continue with source data download
+        if self.dry_run:
+            logger.info("[DRY RUN] Would prompt user for source data download")
+            logger.info("=" * 70)
+            return True
+
+        # Interactive prompt for live mode
+        print()
+        while True:
+            user_input = (
+                input(
+                    "Do you want to proceed with downloading the source data? (y/n): "
+                )
+                .strip()
+                .lower()
+            )
+            if user_input in ["y", "yes"]:
+                break  # Continue to source data download
+            elif user_input in ["n", "no"]:
+                logger.info("Source data download skipped by user.")
+                logger.info("=" * 70)
+                return True  # Exit successfully without source data
+            else:
+                print("Please enter 'yes' or 'no'")
+
+        # Download source data (only reached if user said "yes")
+        logger.info("\n --- Downloading source data... ---")
+        source_results = self.download_source_data()
+        source_success = all(source_results.values())
+
+        # Print final status
+        logger.info("\n" + "=" * 70)
+        if source_success:
+            logger.info("✓ All data downloaded successfully (raw + images + source)")
+        else:
+            # Some subjects failed - provide manual download instructions
+            failed_subjects = [
+                sid for sid, success in source_results.items() if not success
+            ]
+            logger.warning("✗ Source data download incomplete")
+            self.print_manual_download_instructions(failed_subjects)
+
+        logger.info("=" * 70)
+        return True
+
     def print_summary(self) -> None:
+        """Print download configuration summary."""
         print("\n" + "=" * 70)
-        print("THINGS-EEG2 Raw Data Download Summary")
+        print("THINGS-EEG2 Download Configuration")
         print("=" * 70)
         print(f"Subjects to download: {self.subjects}")
         print(f"Data path: {self.project_dir}")
         print(f"Mode: {'DRY RUN' if self.dry_run else 'LIVE'}")
-        print(f"Overwrite download: {self.overwrite}")
+        print(f"Overwrite existing: {self.overwrite}")
         print()
         print("=" * 70 + "\n")
