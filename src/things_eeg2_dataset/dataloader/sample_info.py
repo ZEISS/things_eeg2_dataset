@@ -31,16 +31,32 @@ class SampleInfo:
 
 
 def get_indices_from_metadata(
-    session_id: int, data_idx: int, metadata_array: np.ndarray
+    session_id: int,
+    data_idx: int,
+    metadata_array: np.ndarray,
+    *,
+    partition: str,
 ) -> tuple[int, int, int]:
-    """Calculates 0-based indices from the metadata array."""
+    """Calculate 0-based indices from the metadata array.
+
+    Notes:
+        - Training image ids are arranged as 10 samples per class.
+        - Test image ids correspond to 1 sample per class.
+    """
     # Lookup 1-based Image ID
     raw_image_id = metadata_array[session_id - 1, data_idx]
 
     # Convert to 0-based indices
     image_condition_index = raw_image_id - 1
-    class_idx = image_condition_index // 10
-    sample_idx = image_condition_index % 10
+
+    if partition == "training":
+        class_idx = image_condition_index // 10
+        sample_idx = image_condition_index % 10
+    elif partition == "test":
+        class_idx = int(image_condition_index)
+        sample_idx = 0
+    else:
+        raise ValueError(f"Unknown partition: {partition!r}")
 
     return image_condition_index, class_idx, sample_idx
 
@@ -86,7 +102,7 @@ def get_info_for_sample(
     metadata = np.load(cond_file)
 
     image_condition_index, class_idx, sample_idx = get_indices_from_metadata(
-        session, data_idx, metadata
+        session, data_idx, metadata, partition=partition
     )
 
     class_folder, image_path, class_name = resolve_file_paths(
