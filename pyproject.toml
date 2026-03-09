@@ -7,7 +7,7 @@ license = { file = "LICENSE" }
 requires-python = ">=3.10"
 dependencies = [
     "accelerate>=1.12.0",
-    "diffusers>=0.32.0,<0.37.0",
+    "diffusers>=0.37.0,<0.38.0",
     "einops>=0.8.1",
     "gdown>=5.2.0",
     "lightning>=2.6.0",
@@ -21,7 +21,7 @@ dependencies = [
     "streamlit>=1.52.1",
     "torch>=2.5.0",
     "torchvision>=0.24.1",
-    "transformers>=4.41.0,<4.54.0",
+    "transformers>=4.56.2,<6.0.0",
     "typer>=0.20.0,<0.25.0",
     "tqdm",
     "psutil>=5.9.0",
